@@ -1,0 +1,212 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "typecheck-dashboard",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "isBackground": false,
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    },
+    {
+      "label": "typecheck-brands-page",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "isBackground": false,
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    },
+    {
+      "label": "typecheck-brand-route-fix",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "isBackground": false,
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    },
+    {
+      "label": "typecheck-brand-form-types",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "isBackground": false,
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    },
+    {
+      "label": "typecheck-brand-form-types-final",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "isBackground": false,
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    },
+    {
+      "label": "typecheck-brand-mobile-responsiveness",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "isBackground": false,
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    },
+    {
+      "label": "typecheck-categories-page",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "isBackground": false,
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Typecheck project",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "tsc", "--noEmit"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    }
+  ]
+}
