@@ -1,4 +1,4 @@
-'import client';
+'use client';
 
 import { STORE_DETAILS, STORE_SOCIALS } from '@/constants/store-details';
 import { cn } from '@/lib/utils';
@@ -212,7 +212,7 @@ export function Footer() {
         </div>
 
         <div className="flex w-full justify-center items-center">
-          <form onSubmit={handleSubmit} className="flex flex-col items-center w-full max-w-xl">
+          <form onSubmit={handleSubmit} className="flex  flex-col items-center w-full max-w-xl">
             <div className="flex w-full flex-col sm:flex-row justify-center gap-3 sm:gap-0">
               <input
                 type="email"
@@ -221,7 +221,7 @@ export function Footer() {
                   setEmail(e.target.value);
                   if (error) setError(null);
                 }}
-                className={`border bg-transparent lg:w-[411px] w-full py-4 px-6 text-white placeholder:text-[#666666] focus:outline-none transition-colors ${
+                className={`border bg-transparent font-archivo lg:w-102.75 w-full py-4 px-6 text-white placeholder:text-[#666666] focus:outline-none transition-colors ${
                   error ? 'border-red-500' : 'border-neutral-700 focus:border-white'
                 }`}
                 placeholder="Enter your email"
