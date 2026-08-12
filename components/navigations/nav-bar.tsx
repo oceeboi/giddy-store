@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import STORE_DETAILS from '@/constants/store-details';
+import { STORE_DETAILS } from '@/constants/store-details';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { MenuIcon, SearchIcon, ShoppingCartIcon, UserIcon, XIcon } from 'lucide-react';
