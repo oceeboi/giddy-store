@@ -2,7 +2,8 @@
 import { Drawer } from '@/components/shared/drawer';
 import { ClothingProductData } from '@/types/shared/product';
 import { format_currency } from '@/utils/format';
-import { PlusIcon } from 'lucide-react';
+import { Eye, Heart, PlusIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 type ProductCardProps = {
@@ -13,6 +14,7 @@ type ProductCardProps = {
 export function ProductCard({ data, onAddToCart }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [isPlusClicked, setIsPlusClicked] = useState<boolean>(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const productName = (data?.name ?? 'Monolith Hooded Overcoat').toUpperCase();
   const productCategory = (data?.category?.name ?? data?.productType ?? 'Outerwear').toUpperCase();
   const colorName = (data?.colors?.[0]?.name ?? 'Obsidian').toUpperCase();
@@ -85,7 +87,7 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
               sizes="100vw"
               className="object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
             /> */}
-            <div className="flex-1 bg-gray-400 w-full h-full" />
+            <div className="flex-1 bg-[#f7f7f7] w-full h-full" />
           </div>
         </div>
 
@@ -115,7 +117,7 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
                   <h3 className="text-[#232221] text-base font-archivo uppercase tracking-wider mb-6">
                     Select size
                   </h3>
-                  <div className="grid grid-cols-4 mb-4">
+                  <div className="grid grid-cols-4 mb-6">
                     {Array.from({ length: 5 }).map((_, i) => {
                       const cols = 4;
                       const isFirstColumn = i % cols === 0;
@@ -128,7 +130,7 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
                             isFirstColumn ? 'border-l-[0.5px] border-t-[0.5px]' : ''
                           } ${isFirstRow ? 'border-t-[0.5px]' : ''}`}
                         >
-                          <p>XS</p>
+                          <p className="text-sm font-archivo">XS</p>
                         </div>
                       );
                     })}
@@ -144,6 +146,52 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
             </Drawer.Content>
           </Drawer>
         </div>
+        <div className="absolute right-2.5 top-2.5 z-10 flex flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0">
+          <button
+            type="button"
+            aria-label="Add to wishlist"
+            className={`flex h-8 w-8 items-center justify-center rounded-full border bg-white/90 backdrop-blur-md shadow-xs transition-transform active:scale-90 ${
+              true
+                ? 'border-rose-200 text-rose-600'
+                : 'border-zinc-200/80 text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <Heart className={`h-3.5 w-3.5 ${true ? 'fill-rose-600' : ''}`} />
+          </button>
+
+          <Link
+            href={'targetUrl'}
+            aria-label="Quick view product details"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200/80 bg-white/90 backdrop-blur-md text-zinc-600 shadow-xs transition-transform hover:text-zinc-900 active:scale-90"
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        <div
+          className={`absolute hidden lg:block inset-x-0 bottom-10 z-20 bg-transparent  px-3 py-2.5 transition-all duration-300 ease-out
+              ${quickAddOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}
+              sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto`}
+        >
+          <div className="grid grid-cols-5">
+            {Array.from({ length: 7 }).map((_, i) => {
+              const cols = 5;
+              const isFirstColumn = i % cols === 0;
+              const isFirstRow = i < cols;
+
+              return (
+                <div
+                  key={i}
+                  className={`border-b border-r border-black bg-white hover:bg-black hover:text-white p-2 flex items-center justify-center ${
+                    isFirstColumn ? 'border-l border-t-[0.5px]' : ''
+                  } ${isFirstRow ? 'border-t-[0.5px]' : ''}`}
+                >
+                  <p className="text-[10px] font-archivo">XS</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col justify-between">
@@ -151,7 +199,7 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
           <p className="text-[10px] hidden font-archivo uppercase tracking-widest text-neutral-600">
             {productCategory}
           </p>
-          <h3 className="font-archivo text-sm uppercase tracking-widest text-black ">
+          <h3 className="font-archivo text-xs lg:text-sm uppercase tracking-widest text-black ">
             {productName}
           </h3>
           <p className="text-[11px] font-ibm-plex-mono uppercase tracking-wider text-[#ada5a5]">
