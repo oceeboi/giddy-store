@@ -317,8 +317,8 @@ export function Footer() {
           </div>
         </section>
         <section className="pt-6 lg:border-t lg:border-[#141414] flex items-center justify-center lg:justify-start">
-          <h3 className="text-[#666666] font-archivo text-[11px]">
-            © 2026 GIDDY STORE. ALL RIGHTS RESERVED.
+          <h3 className="text-[#666666] uppercase font-archivo text-[11px]">
+            © 2026 {details.name}. ALL RIGHTS RESERVED.
           </h3>
         </section>
       </section>
