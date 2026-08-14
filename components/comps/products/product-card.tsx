@@ -1,8 +1,10 @@
 'use client';
 import { Drawer } from '@/components/shared/drawer';
-import { ClothingProductData } from '@/types/shared/product';
+import { STORE_DETAILS } from '@/constants/store-details';
+import { ClothingProductData, ProductMedia } from '@/types/shared/product';
 import { format_currency } from '@/utils/format';
 import { Eye, Heart, PlusIcon } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -17,7 +19,7 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const productName = (data?.name ?? 'Monolith Hooded Overcoat').toUpperCase();
   const productCategory = (data?.category?.name ?? data?.productType ?? 'Outerwear').toUpperCase();
-  const colorName = (data?.colors?.[0]?.name ?? 'Obsidian').toUpperCase();
+  const colorName = (data?.colors?.[0]?.name ?? 'black').toUpperCase();
 
   const primaryVariant =
     data?.variants.find((variant) => variant.availableQuantity > 0 && variant.active) ??
@@ -30,16 +32,17 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
     setIsPlusClicked(true);
   }
   const isSoldOut = false; // Placeholder for now
-  const isNew = false; // Placeholder for now
+  const isNew = true; // Placeholder for now
   const basePrice = data?.pricing.basePrice ?? 5000000;
   const compareAtPrice = data?.pricing.compareAtPrice;
   //   const hasDiscount = typeof compareAtPrice === 'number' && compareAtPrice > basePrice;
-  const hasDiscount = true; // Placeholder for now
+  const hasDiscount = false; // Placeholder for now
   //   const discountPercent = hasDiscount
   //     ? Math.round(((compareAtPrice - basePrice) / compareAtPrice) * 100)
   //     : null;
-  const discountPercent = 20; // Placeholder for now
+  const discountPercent = 0; // Placeholder for now
 
+  const targetUrl = '/shop/222';
   function handleAddToCart() {
     if (!onAddToCart || !primaryVariant || !data?.id) {
       return;
@@ -52,6 +55,23 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
     });
   }
 
+  //   const sampleImages: ProductMedia[] = [];
+  const sampleImages = [
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Shadow_Stripe_Jersey_Black.png?v=1786101587&width=1200',
+      alt: 'Model wearing front view of outfit',
+      type: 'image',
+      order: 1,
+      colorId: 'black_01',
+    },
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Celebration_Bowling_Shirt_Off-white.png?v=1786101761&width=1200',
+      alt: 'Model wearing side/back view of outfit',
+      type: 'image',
+      order: 0,
+      colorId: 'black_01',
+    },
+  ];
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-none   bg-transparent text-black transition-all duration-200 ease-in-out hover:border-neutral-400">
       <div className="relative aspect-square w-full overflow-hidden   bg-[#f7f7f7]">
@@ -78,17 +98,20 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
           )}
         </div>
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative h-full w-full">
-            {/* <Image
-              src={data?.media?.[0]?.url ?? '/images/placeholder.png'}
+          <Link href={targetUrl} className="flex-1 flex w-full h-full">
+            <div className="relative h-full w-full">
+              {/* <Image
+              src={data?.media?.[0]?.url ?? '/sample/sample_jg.avif'}
               alt={data?.media?.[0]?.alt ?? 'Product Image'}
               fill
               priority
-              sizes="100vw"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
             /> */}
-            <div className="flex-1 bg-[#f7f7f7] w-full h-full" />
-          </div>
+              <ImageHoverBoard image={data?.media ?? sampleImages} />
+              <div className="flex-1 bg-[#f7f7f7] hidden w-full h-full" />
+            </div>
+          </Link>
         </div>
 
         <div className="absolute right-3 bottom-3 lg:hidden z-10">
@@ -97,10 +120,10 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
               <button
                 type="button"
                 onClick={() => setIsPlusClicked(true)}
-                className="flex h-8 w-8 items-center justify-center  bg-white text-black transition hover:bg-white/90"
+                className="flex h-8 w-8 items-center justify-center bg-transparent text-black transition hover:bg-white/0"
               >
                 <span className="sr-only">Add to cart</span>
-                <PlusIcon className="h-4 w-4" />
+                <PlusIcon className="h-5 w-5" />
               </button>
             </Drawer.Trigger>
             <Drawer.Content
@@ -112,36 +135,28 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
               size="sm"
               className="h-1/2 w-full bg-white lg:hidden"
             >
-              <div className="flex h-full flex-col gap-4 p-4 pt-6">
+              <div className="flex h-full flex-col justify-between p-4 pt-6">
                 <div>
                   <h3 className="text-[#232221] text-base font-archivo uppercase tracking-wider mb-6">
                     Select size
                   </h3>
-                  <div className="grid grid-cols-4 mb-6">
-                    {Array.from({ length: 5 }).map((_, i) => {
-                      const cols = 4;
-                      const isFirstColumn = i % cols === 0;
-                      const isFirstRow = i < cols;
-
-                      return (
-                        <div
-                          key={i}
-                          className={`border-b-[0.5px] border-r-[0.5px] border-black py-4.5 flex items-center justify-center ${
-                            isFirstColumn ? 'border-l-[0.5px] border-t-[0.5px]' : ''
-                          } ${isFirstRow ? 'border-t-[0.5px]' : ''}`}
-                        >
-                          <p className="text-sm font-archivo">XS</p>
-                        </div>
-                      );
-                    })}
+                  <div className="grid grid-cols-4  p-[0.5px] gap-[0.5px] mb-6">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="bg-white border-[0.2px] border-black hover:bg-black hover:text-white py-4.5 flex items-center justify-center transition-colors cursor-pointer"
+                      >
+                        <p className="text-sm font-archivo">XS</p>
+                      </div>
+                    ))}
                   </div>
-                  <button
-                    disabled
-                    className="py-4.5 cursor-not-allowed opacity-50 px-4 w-full bg-black text-white text-sm font-archivo uppercase tracking-wider transition hover:bg-black/90"
-                  >
-                    <p>Add to Cart</p>
-                  </button>
                 </div>
+                <button
+                  disabled
+                  className="py-4.5 cursor-not-allowed opacity-50 px-4 w-full bg-black text-white text-sm font-archivo uppercase tracking-wider transition hover:bg-black/90"
+                >
+                  Add to Cart
+                </button>
               </div>
             </Drawer.Content>
           </Drawer>
@@ -160,7 +175,7 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
           </button>
 
           <Link
-            href={'targetUrl'}
+            href={targetUrl}
             aria-label="Quick view product details"
             className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200/80 bg-white/90 backdrop-blur-md text-zinc-600 shadow-xs transition-transform hover:text-zinc-900 active:scale-90"
           >
@@ -169,57 +184,109 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
         </div>
 
         <div
-          className={`absolute hidden lg:block inset-x-0 bottom-10 z-20 bg-transparent  px-3 py-2.5 transition-all duration-300 ease-out
-              ${quickAddOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}
-              sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto`}
+          className={`absolute hidden lg:block inset-x-0 bottom-10 z-20 bg-transparent px-3 py-2.5 transition-all duration-300 ease-out
+    ${quickAddOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}
+    sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto`}
         >
-          <div className="grid grid-cols-5">
-            {Array.from({ length: 7 }).map((_, i) => {
-              const cols = 5;
-              const isFirstColumn = i % cols === 0;
-              const isFirstRow = i < cols;
-
-              return (
-                <div
-                  key={i}
-                  className={`border-b border-r border-black bg-white hover:bg-black hover:text-white p-2 flex items-center justify-center ${
-                    isFirstColumn ? 'border-l border-t-[0.5px]' : ''
-                  } ${isFirstRow ? 'border-t-[0.5px]' : ''}`}
-                >
-                  <p className="text-[10px] font-archivo">XS</p>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-5  p-[0.5px] gap-[0.5px]">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white hover:bg-black border-[0.2px] hover:text-white p-2 flex items-center justify-center transition-colors duration-150"
+              >
+                <p className="text-[10px] font-archivo">XS</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col justify-between">
-        <div className="space-y-2 p-4 pb-0 md:pb-0 md:p-5">
-          <p className="text-[10px] hidden font-archivo uppercase tracking-widest text-neutral-600">
-            {productCategory}
-          </p>
-          <h3 className="font-archivo text-xs lg:text-sm uppercase tracking-widest text-black ">
-            {productName}
-          </h3>
-          <p className="text-[11px] font-ibm-plex-mono uppercase tracking-wider text-[#ada5a5]">
-            {colorName}
-          </p>
-        </div>
+      <Link href={targetUrl}>
+        <div className="flex flex-1 flex-col justify-between">
+          <div className="space-y-2 p-4 pb-0 md:pb-0 md:p-5">
+            <p className="text-[10px] hidden font-archivo uppercase tracking-widest text-neutral-600">
+              {productCategory}
+            </p>
+            <h3 className="font-archivo text-xs lg:text-sm uppercase tracking-widest text-black ">
+              {productName}
+            </h3>
+            <p className="text-[11px] font-ibm-plex-mono uppercase tracking-wider text-[#ada5a5]">
+              {colorName}
+            </p>
+          </div>
 
-        <div className=" border-neutral-300 p-4 pt-2 md:p-5">
-          <div className="mb-4 flex  items-center gap-2">
-            {hasDiscount ? (
-              <span className="text-[11px] font-archivo font-semibold uppercase tracking-wider text-neutral-600 line-through">
-                {format_currency(compareAtPrice || 6895000)}
+          <div className=" border-neutral-300 p-4 pt-2 md:p-5">
+            <div className="mb-4 flex  items-center gap-2">
+              {hasDiscount ? (
+                <span className="text-[11px] font-archivo font-semibold uppercase tracking-wider text-neutral-600 line-through">
+                  {format_currency(compareAtPrice || 6895000)}
+                </span>
+              ) : null}
+              <span className="font-archivo font-bold text-xs uppercase tracking-wider text-black md:text-base">
+                {format_currency(basePrice)}
               </span>
-            ) : null}
-            <span className="font-archivo font-bold text-xs uppercase tracking-wider text-black md:text-base">
-              {format_currency(basePrice)}
-            </span>
+            </div>
           </div>
         </div>
-      </div>
+      </Link>
     </article>
+  );
+}
+
+function ImageHoverBoard({ image }: { image: ProductMedia[] }) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Fallback if array is empty or undefined
+  if (!image || image.length === 0) {
+    return (
+      <div className="relative w-full h-full">
+        <Image
+          src="/sample/sample_jg.avif"
+          alt={`${STORE_DETAILS.name}-image`}
+          fill
+          priority
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className="object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
+        />
+      </div>
+    );
+  }
+
+  // Find images explicitly by their `order` property
+  const primaryImage = image.find((img) => img.order === 0) || image[0];
+  const secondaryImage = image.find((img) => img.order === 1) || image[1];
+  const hasSecondary = !!secondaryImage && secondaryImage !== primaryImage;
+
+  return (
+    <div
+      className="relative w-full h-full overflow-hidden group/image"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Primary Image (order: 0) */}
+      <Image
+        src={primaryImage?.url ?? '/sample/sample_jg.avif'}
+        alt={primaryImage?.alt ?? 'Product Image'}
+        fill
+        priority
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+        className={`object-cover object-center transition-all duration-500 ease-out group-hover/image:scale-105 ${
+          isHovered && hasSecondary ? 'opacity-0' : 'opacity-100'
+        }`}
+      />
+
+      {/* Secondary Image (order: 1) */}
+      {hasSecondary && (
+        <Image
+          src={secondaryImage.url}
+          alt={secondaryImage.alt ?? 'Product Image Hover'}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className={`absolute inset-0 object-cover object-center transition-all duration-500 ease-out group-hover/image:scale-105 ${
+            isHovered ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+      )}
+    </div>
   );
 }

@@ -28,9 +28,9 @@ export default function Home() {
         </div>
         <div
           style={{ scrollbarWidth: 'none' }}
-          className="grid grid-cols-2 lg:grid-cols-5 gap-2 overflow-x-auto px-6 scrollbar-hide"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-2 overflow-x-auto px-6 scrollbar-hide"
         >
-          {Array.from({ length: 50 }).map((index, i) => (
+          {Array.from({ length: 5 }).map((index, i) => (
             <ProductCard key={i} />
           ))}
         </div>
