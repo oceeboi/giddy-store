@@ -71,6 +71,27 @@ export function ProductCard({ data, onAddToCart }: ProductCardProps) {
       order: 0,
       colorId: 'black_01',
     },
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Celebration_Bowling_Shirt_Off-white.png?v=1786101761&width=1200',
+      alt: 'Model wearing side/back view of outfit',
+      type: 'image',
+      order: 2,
+      colorId: 'black_01',
+    },
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Celebration_Bowling_Shirt_Off-white.png?v=1786101761&width=1200',
+      alt: 'Model wearing side/back view of outfit',
+      type: 'image',
+      order: 3,
+      colorId: 'black_01',
+    },
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/AshluxeShadowStripeJerseyBlue.png?v=1786099543&width=1800',
+      alt: 'Model wearing side/back view of outfit',
+      type: 'image',
+      order: 4,
+      colorId: 'black_01',
+    },
   ];
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-none   bg-transparent text-black transition-all duration-200 ease-in-out hover:border-neutral-400">

@@ -1,9 +1,10 @@
 'use client';
 
-import { ProductCard } from '@/components/comps';
+import { ProductCard, ProductImage } from '@/components/comps';
 import { ProductColorSelector, ProductColor } from '@/components/comps/products/product-color';
 import { ProductSizeSelector, ProductVariant } from '@/components/comps/products/product-size';
 import { Accordion } from '@/components/shared/accordion';
+import { ProductMedia } from '@/types/shared/product';
 import { format_currency } from '@/utils/format';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { JSX, useEffect } from 'react';
@@ -399,20 +400,57 @@ export default function ShoppingProductDetailsPage() {
       ),
     },
   ];
-
+  const Mco = [
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Shadow_Stripe_Jersey_Black.png?v=1786101587&width=1200',
+      alt: 'Model wearing front view of outfit',
+      type: 'image',
+      order: 1,
+      colorId: 'black_01',
+    },
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Celebration_Bowling_Shirt_Off-white.png?v=1786101761&width=1200',
+      alt: 'Model wearing side/back view of outfit',
+      type: 'image',
+      order: 0,
+      colorId: 'black_01',
+    },
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Celebration_Bowling_Shirt_Off-white.png?v=1786101761&width=1200',
+      alt: 'Model wearing side/back view of outfit',
+      type: 'image',
+      order: 2,
+      colorId: 'black_01',
+    },
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Celebration_Bowling_Shirt_Off-white.png?v=1786101761&width=1200',
+      alt: 'Model wearing side/back view of outfit',
+      type: 'image',
+      order: 3,
+      colorId: 'black_01',
+    },
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/AshluxeShadowStripeJerseyBlue.png?v=1786099543&width=1800',
+      alt: 'Model wearing side/back view of outfit',
+      type: 'image',
+      order: 4,
+      colorId: 'black_01',
+    },
+  ];
   return (
     <section>
-      <section className="flex flex-col gap-4">
-        <div>product image here</div>
+      <section className="flex flex-col lg:flex-row gap-4">
+        {/* <div>product image here</div> */}
+        <ProductImage image_data={Mco} />
         <div>
-          <section className="pt-6 pb-12 px-4">
+          <section className="pt-6 pb-12 px-4 lg:pt-15 lg:px-30">
             <div className="flex flex-col gap-2 mb-6">
-              <h1 className="text-xl font-archivo font-medium tracking-tight text-black">
+              <h1 className="text-xl font-archivo-black font-normal tracking-tight text-black">
                 Ashluxe Shadow Stripe Jersey Black
               </h1>
               <div className="flex items-center gap-3">
                 <h2>
-                  <span className="text-lg font-archivo font-medium tracking-tight text-black">
+                  <span className="text-lg font-archivo font-semibold tracking-tight text-black">
                     {format_currency(5000000)}
                   </span>
                 </h2>
@@ -453,7 +491,7 @@ export default function ShoppingProductDetailsPage() {
               </div>
             </form>
           </section>
-          <section className="">
+          <section className="lg:px-28.5">
             <Accordion>
               <Accordion.Item value="product-details">
                 <Accordion.Trigger
