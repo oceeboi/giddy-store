@@ -400,48 +400,59 @@ export default function ShoppingProductDetailsPage() {
       ),
     },
   ];
-  const Mco = [
+  const PRODUCT_IMAGES: ProductMedia[] = [
+    // --- Black (colorId matches MOCK_COLORS[0].id = '1') ---
     {
       url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Shadow_Stripe_Jersey_Black.png?v=1786101587&width=1200',
-      alt: 'Model wearing front view of outfit',
-      type: 'image',
-      order: 1,
-      colorId: 'black_01',
-    },
-    {
-      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Celebration_Bowling_Shirt_Off-white.png?v=1786101761&width=1200',
-      alt: 'Model wearing side/back view of outfit',
+      alt: 'Model wearing front view of black jersey',
       type: 'image',
       order: 0,
-      colorId: 'black_01',
+      colorId: '1',
     },
     {
       url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Celebration_Bowling_Shirt_Off-white.png?v=1786101761&width=1200',
-      alt: 'Model wearing side/back view of outfit',
+      alt: 'Model wearing side view of black jersey',
+      type: 'image',
+      order: 1,
+      colorId: '1',
+    },
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Celebration_Bowling_Shirt_Off-white.png?v=1786101761&width=1200',
+      alt: 'Model wearing back view of black jersey',
       type: 'image',
       order: 2,
-      colorId: 'black_01',
+      colorId: '1',
     },
     {
       url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/Ashluxe_Celebration_Bowling_Shirt_Off-white.png?v=1786101761&width=1200',
-      alt: 'Model wearing side/back view of outfit',
+      alt: 'Close-up detail of black jersey fabric',
       type: 'image',
       order: 3,
-      colorId: 'black_01',
+      colorId: '1',
     },
+
+    // --- Shadow Stripe (colorId matches MOCK_COLORS[1].id = '2') ---
     {
       url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/AshluxeShadowStripeJerseyBlue.png?v=1786099543&width=1800',
-      alt: 'Model wearing side/back view of outfit',
+      alt: 'Model wearing front view of shadow stripe jersey',
       type: 'image',
-      order: 4,
-      colorId: 'black_01',
+      order: 0,
+      colorId: '2',
+    },
+
+    // --- Generic / lifestyle shots shown regardless of color (colorId omitted) ---
+    {
+      url: 'https://sfycdn.speedsize.com/f872e742-7b4a-4913-b7dc-4d0ce34f2142/ash-luxe.com/cdn/shop/files/AshluxeInfernoNoirDressBlack.png?v=1776789417&width=1500',
+      alt: 'Lifestyle shot on model',
+      type: 'image',
+      order: 0,
     },
   ];
   return (
     <section>
-      <section className="flex flex-col lg:flex-row gap-4">
+      <section className="flex pt-10 flex-col lg:flex-row gap-4">
         {/* <div>product image here</div> */}
-        <ProductImage image_data={Mco} />
+        <ProductImage image_data={PRODUCT_IMAGES} selectedColorId={selectedColorId} />
         <div>
           <section className="pt-6 pb-12 px-4 lg:pt-15 lg:px-30">
             <div className="flex flex-col gap-2 mb-6">
