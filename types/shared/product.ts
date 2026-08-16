@@ -67,7 +67,7 @@ export type ClothingProductData = {
   id: string;
   name: string;
   slug: string;
-  brand: ProductReference | null;
+  brand: ProductReference | null; // default to null if no brand is associated
   category: ProductReference | null; // e.g., "Outerwear", "T-Shirts", "Denim"
   collections: ProductReference[]; // e.g., "SS26 Drop 1", "Core Essentials"
   productType: string; // e.g., "Hoodie", "Cargo Pants"

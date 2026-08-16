@@ -6,27 +6,13 @@
  * - Compound API: Accordion / Accordion.Item / Accordion.Trigger / Accordion.Content
  * - `type="single"` (one open at a time, optionally collapsible) or `type="multiple"`
  * - Trigger renders title + icon with `justify-between` — content on the left,
- *   chevron on the right, exactly like the sample layout.
+ *   icon on the right.
  * - Smooth height animation with pure CSS (grid-template-rows 0fr -> 1fr trick),
  *   so it animates to "auto" height without measuring pixels in JS.
  * - Fully controlled or uncontrolled, keyboard accessible (aria-expanded,
  *   aria-controls, button semantics).
- *
- * Usage:
- *
- *   <Accordion type="single" collapsible defaultValue="shipping">
- *     <Accordion.Item value="shipping">
- *       <Accordion.Trigger>Shipping & returns</Accordion.Trigger>
- *       <Accordion.Content>
- *         <p>Free shipping on all orders over $150...</p>
- *       </Accordion.Content>
- *     </Accordion.Item>
- *
- *     <Accordion.Item value="sizing">
- *       <Accordion.Trigger>Size guide</Accordion.Trigger>
- *       <Accordion.Content>...</Accordion.Content>
- *     </Accordion.Item>
- *   </Accordion>
+ * - Fully customizable icon wrapper background/classes via `iconClassName`,
+ *   and support for distinct `openIcon` and `closeIcon` states.
  */
 
 import * as React from 'react';
@@ -220,13 +206,40 @@ function AccordionItem({ value, disabled = false, children, className = '' }: Ac
 interface AccordionTriggerProps {
   children: React.ReactNode;
   className?: string;
-  /** Custom icon; defaults to a chevron that rotates 180deg when open. */
+  /** Custom single icon; defaults to a chevron that rotates 180deg when open. */
   icon?: React.ReactNode;
+  /** Icon to display specifically when the accordion item is open. */
+  openIcon?: React.ReactNode;
+  /** Icon to display specifically when the accordion item is closed. */
+  closeIcon?: React.ReactNode;
+  /** Additional custom class names for the icon wrapper container (e.g. background, padding, rounded). */
+  iconClassName?: string;
 }
 
-function AccordionTrigger({ children, className = '', icon }: AccordionTriggerProps) {
+function AccordionTrigger({
+  children,
+  className = '',
+  icon,
+  openIcon,
+  closeIcon,
+  iconClassName = '',
+}: AccordionTriggerProps) {
   const { toggle } = useAccordionContext('Trigger');
   const { value, open, disabled, triggerId, contentId } = useAccordionItemContext('Trigger');
+
+  // Determine icon content and rotation behavior
+  let iconContent: React.ReactNode;
+  let shouldRotate = false;
+
+  if (openIcon !== undefined || closeIcon !== undefined) {
+    iconContent = open ? (openIcon ?? closeIcon) : (closeIcon ?? openIcon);
+  } else if (icon !== undefined) {
+    iconContent = icon;
+    shouldRotate = true;
+  } else {
+    iconContent = <ChevronIcon />;
+    shouldRotate = true;
+  }
 
   return (
     <button
@@ -240,10 +253,10 @@ function AccordionTrigger({ children, className = '', icon }: AccordionTriggerPr
     >
       <span>{children}</span>
       <span
-        className="shrink-0 text-white transition-transform duration-300 ease-out"
-        style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        className={`shrink-0 text-white transition-transform duration-300 ease-out ${iconClassName}`}
+        style={shouldRotate ? { transform: open ? 'rotate(180deg)' : 'rotate(0deg)' } : undefined}
       >
-        {icon ?? <ChevronIcon />}
+        {iconContent}
       </span>
     </button>
   );
@@ -251,8 +264,6 @@ function AccordionTrigger({ children, className = '', icon }: AccordionTriggerPr
 
 // -----------------------------------------------------------------------------
 // Content — animates open/closed via the grid-template-rows 0fr -> 1fr trick.
-// This animates smoothly to the content's natural height without ever
-// measuring pixels in JS, and works for dynamic/variable-height content.
 // -----------------------------------------------------------------------------
 
 interface AccordionContentProps {
