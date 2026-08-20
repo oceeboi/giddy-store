@@ -1,5 +1,5 @@
 const STORE_DETAILS = {
-  name: 'Giddy Store',
+  name: 'Giddy Culture',
   description: 'This is my app description',
   url: 'https://www.myapp.com',
 };

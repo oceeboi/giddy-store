@@ -1,6 +1,7 @@
 'use client';
 import { ProductCard } from '@/components/comps';
 import { HeroBannerAutoSwipe } from '@/components/comps/main';
+import { SAMPLE_CLOTHING } from '@/constants/sample';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -31,7 +32,7 @@ export default function Home() {
           className="grid grid-cols-2 lg:grid-cols-4 gap-2 overflow-x-auto px-6 scrollbar-hide"
         >
           {Array.from({ length: 5 }).map((index, i) => (
-            <ProductCard key={i} />
+            <ProductCard key={i} data={SAMPLE_CLOTHING} />
           ))}
         </div>
       </section>

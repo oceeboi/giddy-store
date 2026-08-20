@@ -94,7 +94,7 @@ export function NavigationTopBar({ cartCount = 0 }: NavigationTopBarProps) {
             href="/"
             className="block focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4"
           >
-            <h1 className="text-xl lg:text-2xl font-black uppercase tracking-widest font-archivo">
+            <h1 className="text-xl lg:text-2xl font-black uppercase tracking-widest font-archivo-black">
               {STORE_DETAILS.name}
             </h1>
           </Link>

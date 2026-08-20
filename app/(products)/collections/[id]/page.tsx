@@ -4,6 +4,7 @@ import { ProductCard, ProductImage } from '@/components/comps';
 import { ProductColorSelector, ProductColor } from '@/components/comps/products/product-color';
 import { ProductSizeSelector, ProductVariant } from '@/components/comps/products/product-size';
 import { Accordion } from '@/components/shared/accordion';
+import { SAMPLE_CLOTHING } from '@/constants/sample';
 import { ProductMedia } from '@/types/shared/product';
 import { format_currency } from '@/utils/format';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -457,7 +458,7 @@ export default function ShoppingProductDetailsPage() {
           <section className="pt-6 pb-12 px-4 lg:pt-15 lg:px-30">
             <div className="flex flex-col gap-2 mb-6">
               <h1 className="text-xl font-archivo-black font-normal tracking-tight text-black">
-                Ashluxe Shadow Stripe Jersey Black
+                Giddy Shadow Stripe Jersey Black
               </h1>
               <div className="flex items-center gap-3">
                 <h2>
@@ -653,7 +654,7 @@ export default function ShoppingProductDetailsPage() {
 
             {Array.from({ length: 11 }).map((_, index) => (
               <div key={index} className="shrink-0">
-                <ProductCard />
+                <ProductCard data={SAMPLE_CLOTHING} />
               </div>
             ))}
           </div>

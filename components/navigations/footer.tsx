@@ -21,8 +21,8 @@ const quick_navigation: NavigationType[] = [
     href: '/',
   },
   {
-    name: 'Shop now',
-    href: '/shop',
+    name: 'Collections',
+    href: '/collections',
   },
   {
     name: 'Best sellers',

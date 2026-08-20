@@ -58,10 +58,17 @@ export type ProductDescription = {
   fitType: string | null; // e.g., "Oversized Fit", "Boxy Cut", "Slim Fit"
   fabricComposition: string | null; // e.g., "450gsm Heavyweight 100% Organic Cotton"
   careInstructions: string[]; // e.g., ["Machine wash cold", "Hang dry recommended", "Do not iron print"]
-  releaseDate: Date | null;
+  releaseDate: Date | string | null;
   editorialHighlights: string[]; // e.g., "Custom molded hardware", "Distressed ribbing"
   additionalSections: IAdditionalSection[];
 };
+const ProductType = {
+  SNEAKER: 'sneaker', // footwear
+  APPAREL: 'apparel', // clothing
+  ACCESSORY: 'accessory', // bags, hats, jewelry, etc.
+  EQUIPMENT: 'equipment', // sports gear, electronics, etc.
+} as const;
+export type ProductType = (typeof ProductType)[keyof typeof ProductType];
 
 export type ClothingProductData = {
   id: string;
@@ -70,7 +77,7 @@ export type ClothingProductData = {
   brand: ProductReference | null; // default to null if no brand is associated
   category: ProductReference | null; // e.g., "Outerwear", "T-Shirts", "Denim"
   collections: ProductReference[]; // e.g., "SS26 Drop 1", "Core Essentials"
-  productType: string; // e.g., "Hoodie", "Cargo Pants"
+  productType: ProductType; // e.g., "Hoodie", "Cargo Pants"
   gender: string; // e.g., "Unisex", "Men", "Women"
   colors: ProductColor[]; // Available color options for this garment
   description: ProductDescription | null;
@@ -81,7 +88,7 @@ export type ClothingProductData = {
   seo: ProductSeo;
   tags: string[];
   active?: boolean;
-  publishedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+  publishedAt: Date | string | null;
+  createdAt: Date | string | null;
+  updatedAt: Date | string | null;
 };
