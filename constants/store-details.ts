@@ -2,6 +2,14 @@ const STORE_DETAILS = {
   name: 'Giddy Culture',
   description: 'This is my app description',
   url: 'https://www.myapp.com',
+  domain: 'https://www.myapp.com',
+  email: '',
+  support_email: '',
+  logo: '',
+  folder: 'sneaker-store',
+  phone_number: 7089652459,
+  whatsapp_link: '',
+  loaction: 'Gateview plaza, plot 11 Admiralty way Lekki phase 1, Lagos, Nigeria.',
 };
 
 const STORE_SOCIALS = [
