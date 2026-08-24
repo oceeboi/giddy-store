@@ -5,29 +5,35 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Field, Input, Textarea } from '@/components/shared/form';
 import { toast } from '@/components/toast/toast';
-import { CreateBrandInput, createBrandSchema } from '@/schemas/create-catalogs.schema';
+import { CreateCollectionInput, createCollectionSchema } from '@/schemas/create-catalogs.schema';
 import { SingleMediaUpload } from '@/components/medias/media-upload';
-import { useCreateBrand } from '@/hooks/use-catalog.hook';
+import { useCreateCollection } from '@/hooks/use-catalog.hook';
 
-export default function CreateBrand() {
+export default function CreateCollectionsPage() {
   const {
     control,
     handleSubmit,
     register,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<CreateBrandInput>({
-    resolver: zodResolver(createBrandSchema),
+  } = useForm<CreateCollectionInput>({
+    resolver: zodResolver(createCollectionSchema),
+    defaultValues: {
+      collection_name: '',
+      collection_slug: '',
+      collection_description: '',
+      collection_image: '',
+    },
   });
 
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverSuccess, setServerSuccess] = useState<{
     message: string;
-    data: CreateBrandInput;
+    data: CreateCollectionInput;
   } | null>(null);
 
-  const { mutate } = useCreateBrand();
-  const onSubmit = async (data: CreateBrandInput) => {
+  const { mutate } = useCreateCollection();
+  const onSubmit = async (data: CreateCollectionInput) => {
     // Clear previous banners on new submission attempt
     setServerError(null);
     setServerSuccess(null);
@@ -35,24 +41,38 @@ export default function CreateBrand() {
     await toast.promise(
       new Promise((resolve, reject) => {
         mutate(data, {
-          onSuccess: (response) => resolve(response),
-          onError: (err) => reject(err),
+          onSuccess: (response) => {
+            setServerSuccess({
+              message: 'Collection added successfully',
+              data: {
+                collection_name: response.success ? response.data.name : data.collection_name,
+              },
+            });
+            resolve('Collection added successfully');
+            reset();
+          },
+          onError: (err) => {
+            const errorMessage = 'Failed to save collection to database. Please try again.';
+            setServerError(errorMessage);
+            reject(new Error(err ? err.message : errorMessage));
+          },
         });
       }),
       {
-        pending: 'Adding brand…',
-        success: 'Brand added',
+        pending: 'Adding Collection…',
+        success: 'Collection added',
         error: (err) => (err instanceof Error ? err.message : 'Something went wrong'),
       }
     );
   };
 
   return (
-    <section className="flex  font-archivo flex-col gap-6 md:p-6 md:pt-0">
+    <section className="font-archivo space-y-6">
       <div>
-        <h1 className="font-archivo text-2xl font-bold text-black">Brand</h1>
-        <p className="font-archivo text-sm text-neutral-600">Add a Brand.</p>
+        <h1 className="font-archivo text-2xl font-bold text-black">Collection</h1>
+        <p className="font-archivo text-sm text-neutral-600">Add a Collection.</p>
       </div>
+
       {/* Server Error Banner */}
       {serverError && (
         <div
@@ -74,89 +94,84 @@ export default function CreateBrand() {
             <span className="h-2 w-2 shrink-0 rounded-full bg-green-600" />
             <p className="font-medium">{serverSuccess.message}</p>
           </div>
-          {serverSuccess.data?.brand_name && (
-            <p className="pl-4.5 text-xs hidden text-green-600">
-              Added: <span className="font-semibold">{serverSuccess.data.brand_name}</span>
+          {serverSuccess.data?.collection_name && (
+            <p className="pl-4.5 text-xs text-green-600">
+              Added: <span className="font-semibold">{serverSuccess.data.collection_name}</span>
             </p>
           )}
         </div>
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
-        {/* Brand Name */}
+        {/* Collection Name */}
         <Field
-          label="Brand Name"
-          error={errors.brand_name?.message}
+          label="Collection Name"
+          error={errors.collection_name?.message}
           delay={100}
           xx={true}
           className="font-archivo text-xs font-semibold uppercase tracking-wider text-black"
         >
           <Input
-            {...register('brand_name')}
+            {...register('collection_name')}
             type="text"
-            placeholder="e.g. Nike, Fear of God, A.P.C."
-            hasError={Boolean(errors.brand_name)}
+            placeholder="e.g. Summer Drop '26, Essentials, Capsule Vol. 1"
+            hasError={Boolean(errors.collection_name)}
             disabled={isSubmitting}
             className="rounded-none"
           />
         </Field>
 
-        {/* Brand Description */}
+        {/* Collection Description */}
         <Field
-          label="Brand Description"
-          error={errors.brand_description?.message}
+          label="Collection Description"
+          error={errors.collection_description?.message}
           delay={100}
           xx={false}
           className="font-archivo text-xs font-semibold uppercase tracking-wider text-black"
         >
           <Textarea
-            {...register('brand_description')}
+            {...register('collection_description')}
             rows={5}
-            placeholder="Provide a brief overview of the brand's heritage, aesthetic, or design philosophy..."
-            hasError={Boolean(errors.brand_description)}
+            placeholder="Provide details about the theme, aesthetic, or concept behind this collection..."
+            hasError={Boolean(errors.collection_description)}
             disabled={isSubmitting}
             className="rounded-none"
           />
         </Field>
 
-        {/* Brand Slug */}
-        <div className="flex flex-col gap-1.5">
-          <label className="font-archivo text-xs font-semibold uppercase tracking-wider text-black">
-            Brand Slug
-            <span className="ml-1 font-normal normal-case text-neutral-500">
-              (leave blank for auto-generation)
-            </span>
-          </label>
+        {/* Collection Slug */}
+        <Field
+          label="Collection Slug (leave blank for auto-generation)"
+          error={errors.collection_slug?.message}
+          delay={100}
+          xx={false}
+          className="font-archivo text-xs font-semibold uppercase tracking-wider text-black"
+        >
           <Input
-            {...register('brand_slug')}
+            {...register('collection_slug')}
             type="text"
-            placeholder="e.g. fear-of-god"
-            hasError={Boolean(errors.brand_slug)}
+            placeholder="e.g. summer-drop-26"
+            hasError={Boolean(errors.collection_slug)}
             disabled={isSubmitting}
             className="rounded-none"
           />
-          {errors.brand_slug && (
-            <p role="alert" className="font-archivo text-xs text-red-600">
-              {errors.brand_slug.message}
-            </p>
-          )}
-        </div>
+        </Field>
 
-        {/* Brand Image Upload */}
+        {/* Collection Cover Image */}
         <Field
-          label="Brand Logo"
-          error={errors.brand_logo?.message}
+          label="Collection Cover Image"
+          error={errors.collection_image?.message}
           delay={100}
           xx={false}
           className="font-archivo text-xs font-semibold uppercase tracking-wider text-black"
         >
           <Controller
-            name="brand_logo"
+            name="collection_image"
             control={control}
             render={({ field }) => (
               <SingleMediaUpload
-                productId="brand-upload" // Optional placeholder or category identifier
-                folder="brand"
+                productId="collection-upload"
+                folder="collections"
                 value={(field.value as string) || ''}
                 onChange={field.onChange}
               />
@@ -164,34 +179,13 @@ export default function CreateBrand() {
           />
         </Field>
 
-        {/* Brand Website */}
-        <div className="flex flex-col gap-1.5">
-          <label className="font-archivo text-xs font-semibold uppercase tracking-wider text-black">
-            Brand Website
-            <span className="ml-1 font-normal normal-case text-neutral-500">(Optional)</span>
-          </label>
-          <Input
-            {...register('brand_website')}
-            type="text"
-            placeholder="e.g. https://www.brandwebsite.com"
-            hasError={Boolean(errors.brand_website)}
-            disabled={isSubmitting}
-            className="rounded-none"
-          />
-          {errors.brand_website && (
-            <p role="alert" className="font-archivo text-xs text-red-600">
-              {errors.brand_website.message}
-            </p>
-          )}
-        </div>
-
         {/* Submit Button */}
         <button
           type="submit"
           disabled={isSubmitting}
           className="font-archivo w-fit rounded-none bg-black px-6 py-3 text-sm font-medium uppercase tracking-wider text-white transition-colors hover:bg-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isSubmitting ? 'Saving…' : 'Add brand'}
+          {isSubmitting ? 'Saving…' : 'Add Collection'}
         </button>
       </form>
     </section>

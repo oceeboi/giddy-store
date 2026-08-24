@@ -6,13 +6,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ProductMediaUpload } from '@/components/medias/product-media-upload';
 import { toast } from '@/components/toast/toast';
-import { createProductSchema } from '@/schemas/create-product.schema';
+import { CreateProductInput, createProductSchema } from '@/schemas/create-product.schema';
 import { CustomSelect, Field, Input, Textarea } from '@/components/shared/form';
 import { OptionPicker } from '@/components/shared';
 import { format_currency } from '@/utils/format';
 import { TagPillInput } from '@/components/shared/tag-pill';
 import { ColorPickerManager } from '@/components/shared/color-selector';
 import { ProductVariantMatrix } from '@/components/shared/product-variant-matrix';
+import { useCreateProduct } from '@/hooks/use-product.hook';
 
 type Option = { value: string; label: string; id: string };
 
@@ -91,20 +92,16 @@ export default function AdminProductsPage() {
 
   const mediaCount = watch('product_media')?.length ?? 0;
   const watchedColors = watch('product_colors') ?? [];
-  const onSubmit = async (data: z.input<typeof createProductSchema>) => {
-    console.log('Creating product with this data:', data);
+
+  const { mutate } = useCreateProduct();
+
+  const onSubmit = async (data: CreateProductInput) => {
     await toast.promise(
       new Promise((resolve, reject) => {
-        // Simulate an async API call or save operation using setTimeout
-        setTimeout(() => {
-          const success = true; // Change to false to test the error state
-
-          if (success) {
-            resolve('Product saved successfully');
-          } else {
-            reject(new Error('Failed to save product to database'));
-          }
-        }, 2000);
+        mutate(data, {
+          onSuccess: (response) => resolve(response),
+          onError: (err) => reject(err),
+        });
       }),
       {
         pending: 'Saving product…',
@@ -115,10 +112,12 @@ export default function AdminProductsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 md:p-6">
+    <div className="flex flex-col gap-6 md:p-6 md:pt-0">
       <div>
         <h1 className="font-archivo text-2xl font-bold text-black">Products</h1>
-        <p className="font-archivo text-sm text-neutral-600">Manage your products here.</p>
+        <p className="font-archivo text-sm text-neutral-600">
+          Manage your product catalog and inventory details.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 font-archivo">
@@ -133,7 +132,7 @@ export default function AdminProductsPage() {
           <Input
             {...register('product_name')}
             type="text"
-            placeholder="Product Name"
+            placeholder="e.g. Air Jordan 1 Retro High OG"
             hasError={!!errors.product_name}
             disabled={isSubmitting}
             className="rounded-none"
@@ -228,7 +227,7 @@ export default function AdminProductsPage() {
                 onChange={field.onChange}
                 disabled={isSubmitting}
                 hasError={!!errors.product_gender}
-                placeholder="Select a Gender"
+                placeholder="Select target demographic"
               />
             </Field>
           )}
@@ -252,7 +251,7 @@ export default function AdminProductsPage() {
                 onChange={field.onChange}
                 disabled={isSubmitting}
                 hasError={!!errors.product_type}
-                placeholder="Select a Product Type"
+                placeholder="Select catalog type"
               />
             </Field>
           )}
@@ -269,7 +268,7 @@ export default function AdminProductsPage() {
           <Input
             {...register('product_currency')}
             type="text"
-            placeholder="NGN"
+            placeholder="e.g. USD, NGN, EUR"
             hasError={!!errors.product_currency}
             disabled={isSubmitting}
             className="rounded-none"
@@ -286,7 +285,7 @@ export default function AdminProductsPage() {
           <Input
             {...register('product_basePrice')}
             type="number"
-            placeholder={format_currency(0)}
+            placeholder="e.g. 15000"
             hasError={!!errors.product_basePrice}
             disabled={isSubmitting}
             className="rounded-none"
@@ -303,7 +302,7 @@ export default function AdminProductsPage() {
           <Input
             {...register('product_compareAtPrice')}
             type="number"
-            placeholder={format_currency(0)}
+            placeholder="e.g. 20000 (Original price for sales)"
             hasError={!!errors.product_compareAtPrice}
             disabled={isSubmitting}
             className="rounded-none"
@@ -320,7 +319,7 @@ export default function AdminProductsPage() {
           <Input
             {...register('product_costPrice')}
             type="number"
-            placeholder={format_currency(0)}
+            placeholder="e.g. 8000 (Internal tracking cost)"
             hasError={!!errors.product_costPrice}
             disabled={isSubmitting}
             className="rounded-none"
@@ -348,6 +347,7 @@ export default function AdminProductsPage() {
             )}
           />
         </Field>
+
         <Field
           label="Product Variants (Inventory Matrix)"
           error={errors.product_variants?.message as string | undefined}
@@ -384,7 +384,7 @@ export default function AdminProductsPage() {
             render={({ field }) => (
               <ProductMediaUpload
                 productId={draftProductId}
-                colors={watchedColors} // Pass current product colors so admins can tag photos to them
+                colors={watchedColors}
                 value={field.value}
                 onChange={field.onChange}
               />
@@ -431,7 +431,7 @@ export default function AdminProductsPage() {
           <Textarea
             {...register('product_description.narrative')}
             rows={4}
-            placeholder="Describe the product story and value proposition"
+            placeholder="Provide a compelling product story, fit notes, and quality details..."
             hasError={!!errors.product_description?.narrative}
             disabled={isSubmitting}
             className="rounded-none"
@@ -448,7 +448,7 @@ export default function AdminProductsPage() {
           <Input
             {...register('product_description.colorway')}
             type="text"
-            placeholder="Green Spark / Black"
+            placeholder="e.g. Sail / University Red / Black"
             hasError={Boolean(errors.product_description?.colorway)}
             disabled={isSubmitting}
             className="rounded-none"
@@ -466,7 +466,7 @@ export default function AdminProductsPage() {
           <Input
             {...register('product_seo.title')}
             type="text"
-            placeholder="SEO Title"
+            placeholder="e.g. Buy Air Jordan 1 Retro High OG | Official Store"
             hasError={Boolean(errors.product_seo?.title)}
             disabled={isSubmitting}
             className="rounded-none"
@@ -483,7 +483,7 @@ export default function AdminProductsPage() {
           <Textarea
             {...register('product_seo.description')}
             rows={3}
-            placeholder="SEO Meta Description"
+            placeholder="Write a concise meta summary for search engines (max 160 characters)..."
             hasError={Boolean(errors.product_seo?.description)}
             disabled={isSubmitting}
             className="rounded-none"
@@ -505,7 +505,7 @@ export default function AdminProductsPage() {
                 value={field.value ?? []}
                 onChange={field.onChange}
                 disabled={isSubmitting}
-                placeholder="e.g. Luxury, Lightweight"
+                placeholder="e.g. sneakers, high-tops, streetwear"
                 hasError={!!errors.product_seo?.keywords}
                 footer_label="keyword tag"
               />
@@ -529,7 +529,7 @@ export default function AdminProductsPage() {
                 value={field.value ?? []}
                 onChange={field.onChange}
                 disabled={isSubmitting}
-                placeholder="e.g. Waterproof, Lightweight"
+                placeholder="e.g. Best Seller, New Arrival, Sale"
                 hasError={!!errors.product_tags}
                 footer_label="product tag"
               />

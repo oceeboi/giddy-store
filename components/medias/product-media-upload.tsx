@@ -47,6 +47,7 @@ export function ProductMediaUpload({
     onUploaded: (media) => {
       onChange([...value, { ...media, colorId: selectedColorForUpload || undefined }]);
     },
+    folder: 'testing',
   });
 
   const handleFiles = useCallback(

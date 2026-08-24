@@ -13,12 +13,13 @@ type UploadedMedia = {
 };
 
 type UseMediaUploadOptions = {
+  folder?: string;
   productId: string;
   colorId?: string;
   onUploaded?: (media: UploadedMedia) => void;
 };
 
-export function useMediaUpload({ productId, colorId, onUploaded }: UseMediaUploadOptions) {
+export function useMediaUpload({ productId, colorId, onUploaded, folder }: UseMediaUploadOptions) {
   const [progress, setProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
 
@@ -37,6 +38,7 @@ export function useMediaUpload({ productId, colorId, onUploaded }: UseMediaUploa
             fileName: file.name,
             fileType: file.type,
             fileSize: file.size,
+            folder: folder,
             productId,
             colorId,
           }),

@@ -168,4 +168,4 @@ export const createProductSchema = z
     });
   });
 
-export type CreateProductInput = z.infer<typeof createProductSchema>;
+export type CreateProductInput = z.input<typeof createProductSchema>;

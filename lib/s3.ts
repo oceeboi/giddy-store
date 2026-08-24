@@ -33,7 +33,10 @@ export type PresignInput = {
 export type PresignResult =
   { ok: true; uploadUrl: string; publicUrl: string; key: string } | { ok: false; error: string };
 
-export async function generatePresignedUploadUrl(input: PresignInput): Promise<PresignResult> {
+export async function generatePresignedUploadUrl(
+  input: PresignInput,
+  folder_name?: string
+): Promise<PresignResult> {
   if (!ALLOWED_MIME_TYPES.includes(input.fileType as (typeof ALLOWED_MIME_TYPES)[number])) {
     return { ok: false, error: `Unsupported file type: ${input.fileType}` };
   }
@@ -45,6 +48,10 @@ export async function generatePresignedUploadUrl(input: PresignInput): Promise<P
   // Sanitize the filename — never trust user-supplied names in the key.
   // Strip anything that isn't alphanumeric/dot/dash to avoid path traversal
   // (e.g. "../../etc/passwd.png") or S3 key edge cases with special chars.
+  const safeFolderName = folder_name
+    ?.toLocaleLowerCase()
+    .replace(/[^a-z0-9.\-]/g, '-')
+    .slice(-100); // guard against absurdly long filenames
   const safeName = input.fileName
     .toLowerCase()
     .replace(/[^a-z0-9.\-]/g, '-')
@@ -52,7 +59,7 @@ export async function generatePresignedUploadUrl(input: PresignInput): Promise<P
 
   const uniquePrefix = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   const colorSegment = input.colorId ? `${input.colorId}/` : '';
-  const key = `products/${input.productId}/${colorSegment}${uniquePrefix}-${safeName}`;
+  const key = `${folder_name ? safeFolderName : 'products'}/${input.productId}/${colorSegment}${uniquePrefix}-${safeName}`;
 
   try {
     const command = new PutObjectCommand({

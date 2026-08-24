@@ -7,6 +7,7 @@ const presignSchema = z.object({
   fileType: z.string().min(1),
   fileSize: z.number().positive(),
   productId: z.string().min(1),
+  folder: z.string().optional(),
   colorId: z.string().optional(),
 });
 
@@ -28,7 +29,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = await generatePresignedUploadUrl(parsed.data);
+  const { folder, ...rest } = parsed.data;
+
+  const result = await generatePresignedUploadUrl(rest, folder);
   if (!result.ok) {
     return NextResponse.json(result, { status: 400 });
   }

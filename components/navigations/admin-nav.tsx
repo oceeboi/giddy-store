@@ -19,6 +19,7 @@ import {
   ShoppingBag,
   Users,
   FilePlus2Icon,
+  Ruler,
 } from 'lucide-react';
 
 export interface AdminNavItem {
@@ -81,11 +82,37 @@ const ADMIN_NAVIGATION_ITEMS: AdminNavItem[] = [
         name: 'Categories',
         href: '/admin/products/categories',
         icon: Layers,
+        sub_nav_routes: [
+          {
+            name: 'Add a category',
+            href: '/admin/products/categories/create',
+            icon: FilePlus2Icon,
+          },
+        ],
       },
       {
         name: 'Collections',
         href: '/admin/products/collections',
         icon: Boxes,
+        sub_nav_routes: [
+          {
+            name: 'Add a collection',
+            href: '/admin/products/collections/create',
+            icon: FilePlus2Icon,
+          },
+        ],
+      },
+      {
+        name: 'Sizes',
+        href: '/admin/products/sizes',
+        icon: Ruler,
+        sub_nav_routes: [
+          {
+            name: 'Add a size',
+            href: '/admin/products/sizes/create',
+            icon: FilePlus2Icon,
+          },
+        ],
       },
     ],
   },
@@ -142,7 +169,7 @@ function NavItem({ item, pathname, depth = 0 }: NavItemProps) {
             'group flex w-full items-center gap-3  px-3 py-2 text-sm font-medium transition-all duration-150 ease-in-out',
             'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
             isActive &&
-              'bg-accent text-foreground font-semibold border-l-2 border-primary rounded-l-none',
+              'bg-accent text-foreground font-semibold  border-l-2 border-primary rounded-l-none',
             depth > 0 && 'text-xs pl-8'
           )}
         >
