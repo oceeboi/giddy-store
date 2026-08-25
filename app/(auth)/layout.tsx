@@ -1,10 +1,10 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { STORE_DETAILS } from '@/constants/store-details';
 import { usePathname } from 'next/navigation';
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export function AuthLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const isLogin = pathname?.includes('/login');
@@ -65,5 +65,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </footer>
       </div>
     </main>
+  );
+}
+
+export default function MainAuthLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={[]}>
+      <AuthLayout>{children}</AuthLayout>
+    </Suspense>
   );
 }

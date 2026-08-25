@@ -45,7 +45,7 @@ export default function CreateCollectionsPage() {
             setServerSuccess({
               message: 'Collection added successfully',
               data: {
-                collection_name: response.success ? response.data.name : data.collection_name,
+                collection_name: response.name,
               },
             });
             resolve('Collection added successfully');

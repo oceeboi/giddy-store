@@ -11,7 +11,16 @@ import {
   CreateSizeInput,
   createSizeSchema,
 } from '@/schemas/create-catalogs.schema';
-import { BrandData, CategoryData, CollectionData, SizeData } from '@/types/shared/catalog';
+import {
+  AdminBrandListParams,
+  AdminCategoryListParams,
+  AdminCollectionListParams,
+  AdminSizeListParams,
+  BrandData,
+  CategoryData,
+  CollectionData,
+  SizeData,
+} from '@/types/shared/catalog';
 
 type ServiceResult<T> = { success: true; data: T } | { success: false; message: string };
 
@@ -110,6 +119,52 @@ export class CatalogService {
     return response.json() as Promise<T>;
   }
 
+  async getAdminBrands(params?: AdminBrandListParams): Promise<
+    ServiceResult<{
+      brands: BrandData[];
+      total: number;
+    }>
+  > {
+    try {
+      const query = this.buildQuery(params);
+      const response = await this.get<{
+        data: {
+          brands: BrandData[];
+          total: number;
+        };
+      }>(`admin/brand${query}`);
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to fetch admin brand list.'),
+      };
+    }
+  }
+
+  async getAdminBrandById(brandId: string): Promise<ServiceResult<BrandData>> {
+    const normalized_brand_id = brandId.trim();
+    if (!normalized_brand_id) {
+      return { success: false, message: 'Brand id is required.' };
+    }
+
+    try {
+      const response = await this.get<{ data: { brand: BrandData } }>(
+        `admin/brand/${encodeURIComponent(normalized_brand_id)}`
+      );
+
+      return { success: true, data: response.data.brand };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to fetch admin brand.', {
+          404: 'Brand not found.',
+        }),
+      };
+    }
+  }
+
   async createAdminBrand(data: CreateBrandInput): Promise<ServiceResult<BrandData>> {
     const validation = CatalogService.validate(createBrandSchema, data);
     if (!validation.success) return validation;
@@ -131,8 +186,52 @@ export class CatalogService {
     }
   }
 
-  //   ############
+  //   ############ category below
+  async getAdminCategories(params?: AdminCategoryListParams): Promise<
+    ServiceResult<{
+      categories: CategoryData[];
+      total: number;
+    }>
+  > {
+    try {
+      const query = this.buildQuery(params);
+      const response = await this.get<{
+        data: {
+          categories: CategoryData[];
+          total: number;
+        };
+      }>(`admin/category${query}`);
 
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to fetch admin category list.'),
+      };
+    }
+  }
+
+  async getAdminCategoryById(categoryId: string): Promise<ServiceResult<CategoryData>> {
+    const normalized_category_id = categoryId.trim();
+    if (!normalized_category_id) {
+      return { success: false, message: 'Category id is required.' };
+    }
+
+    try {
+      const response = await this.get<{ data: { category: CategoryData } }>(
+        `admin/category/${encodeURIComponent(normalized_category_id)}`
+      );
+
+      return { success: true, data: response.data.category };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to fetch admin category.', {
+          404: 'Category not found.',
+        }),
+      };
+    }
+  }
   async createAdminCategory(data: CreateCategoryInput): Promise<ServiceResult<CategoryData>> {
     const validation = CatalogService.validate(createCategory, data);
     if (!validation.success) return validation;
@@ -150,6 +249,54 @@ export class CatalogService {
         message: CatalogService.fromHttpError(error, 'Failed to create category.', {
           404: 'Parent category not found.',
           409: 'A category with this slug already exists.',
+        }),
+      };
+    }
+  }
+
+  //==== collections below
+
+  async getAdminCollections(params?: AdminCollectionListParams): Promise<
+    ServiceResult<{
+      collections: CollectionData[];
+      total: number;
+    }>
+  > {
+    try {
+      const query = this.buildQuery(params);
+      const response = await this.get<{
+        data: {
+          collections: CollectionData[];
+          total: number;
+        };
+      }>(`admin/collection${query}`);
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to fetch admin collection list.'),
+      };
+    }
+  }
+
+  async getAdminCollectionById(collectionId: string): Promise<ServiceResult<CollectionData>> {
+    const normalized_collection_id = collectionId.trim();
+    if (!normalized_collection_id) {
+      return { success: false, message: 'Collection id is required.' };
+    }
+
+    try {
+      const response = await this.get<{ data: { collection: CollectionData } }>(
+        `admin/collection/${encodeURIComponent(normalized_collection_id)}`
+      );
+
+      return { success: true, data: response.data.collection };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to fetch admin collection.', {
+          404: 'Collection not found.',
         }),
       };
     }
@@ -176,6 +323,53 @@ export class CatalogService {
       };
     }
   }
+  //==== size below
+
+  async getAdminSize(params?: AdminSizeListParams): Promise<
+    ServiceResult<{
+      sizes: SizeData[];
+      total: number;
+    }>
+  > {
+    try {
+      const query = this.buildQuery(params);
+      const response = await this.get<{
+        data: {
+          sizes: SizeData[];
+          total: number;
+        };
+      }>(`admin/size${query}`);
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to fetch admin size list.'),
+      };
+    }
+  }
+
+  async getAdminSizeById(sizeId: string): Promise<ServiceResult<SizeData>> {
+    const normalized_size_id = sizeId.trim();
+    if (!normalized_size_id) {
+      return { success: false, message: 'Size id is required.' };
+    }
+
+    try {
+      const response = await this.get<{ data: { size: SizeData } }>(
+        `admin/size/${encodeURIComponent(normalized_size_id)}`
+      );
+
+      return { success: true, data: response.data.size };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to fetch admin size.', {
+          404: 'Size not found.',
+        }),
+      };
+    }
+  }
 
   async createAdminSize(data: CreateSizeInput): Promise<ServiceResult<SizeData>> {
     const validation = CatalogService.validate(createSizeSchema, data);
@@ -189,7 +383,7 @@ export class CatalogService {
       return {
         success: false,
         message: CatalogService.fromHttpError(error, 'Failed to create size.', {
-          409: 'A size with this slug already exists.',
+          409: 'A size with this name already exists.',
         }),
       };
     }

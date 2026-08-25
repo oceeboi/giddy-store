@@ -35,5 +35,26 @@ export type CollectionData = {
 export type SizeData = {
   id: string;
   name: string;
-  slug: string;
+};
+
+///
+
+export type AdminBrandListParams = {
+  search?: string;
+  active?: boolean;
+};
+
+export type AdminCategoryListParams = {
+  search?: string;
+  active?: boolean;
+  parent?: string | null;
+};
+
+export type AdminCollectionListParams = {
+  search?: string;
+  active?: boolean;
+};
+
+export type AdminSizeListParams = {
+  search?: string;
 };

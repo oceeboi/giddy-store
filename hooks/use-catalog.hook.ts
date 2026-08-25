@@ -6,54 +6,245 @@ import {
 } from '@/schemas/create-catalogs.schema';
 
 import { CatalogService } from '@/services/catalog.service';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  AdminBrandListParams,
+  AdminCategoryListParams,
+  AdminCollectionListParams,
+  AdminSizeListParams,
+  BrandData,
+  CategoryData,
+  CollectionData,
+  SizeData,
+} from '@/types/shared/catalog';
+import {
+  keepPreviousData,
+  useMutation,
+  UseMutationOptions,
+  useQuery,
+  useQueryClient,
+  UseQueryOptions,
+} from '@tanstack/react-query';
 
 const service = new CatalogService();
+type ServiceResult<T> = { success: true; data: T } | { success: false; message: string };
 
-export function useCreateBrand() {
-  const queryClient = useQueryClient();
+export class ServiceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ServiceError';
+  }
+}
 
-  return useMutation({
-    mutationFn: (data: CreateBrandInput) => service.createAdminBrand(data),
-    onSuccess: () => {
-      // Invalidate and refetch products list (adjust query key as needed)
-      queryClient.invalidateQueries({ queryKey: ['brands'] });
-    },
+function unwrapResult<T>(result: ServiceResult<T>): T {
+  if (!result.success) {
+    throw new ServiceError(result.message);
+  }
+  return result.data;
+}
+type QueryOptionsOf<TData> = Omit<UseQueryOptions<TData, ServiceError>, 'queryKey' | 'queryFn'>;
+type MutationOptionsOf<TData, TVariables> = Omit<
+  UseMutationOptions<TData, ServiceError, TVariables>,
+  'mutationFn'
+>;
+
+//======== catalog keys ===
+
+export const brandKeys = {
+  all: ['brands'] as const,
+  adminList: (params?: AdminBrandListParams) =>
+    [...brandKeys.all, 'admin', 'list', params ?? {}] as const,
+  adminDetail: (brandId: string) => [...brandKeys.all, 'admin', 'detail', brandId] as const,
+};
+
+export const categoryKeys = {
+  all: ['categories'] as const,
+  adminList: (params?: AdminCategoryListParams) =>
+    [...categoryKeys.all, 'admin', 'list', params ?? {}] as const,
+  adminDetail: (categoryId: string) =>
+    [...categoryKeys.all, 'admin', 'detail', categoryId] as const,
+};
+
+export const collectionKeys = {
+  all: ['collections'] as const,
+  adminList: (params?: AdminCollectionListParams) =>
+    [...collectionKeys.all, 'admin', 'list', params ?? {}] as const,
+  adminDetail: (collectionId: string) =>
+    [...collectionKeys.all, 'admin', 'detail', collectionId] as const,
+};
+
+export const sizeKeys = {
+  all: ['sizes'] as const,
+  adminList: (params?: AdminSizeListParams) =>
+    [...sizeKeys.all, 'admin', 'list', params ?? {}] as const,
+  adminDetail: (sizeId: string) => [...sizeKeys.all, 'admin', 'detail', sizeId] as const,
+};
+
+// brand
+
+export function useAdminBrandsQuery(
+  params?: AdminBrandListParams,
+  options?: QueryOptionsOf<{ brands: BrandData[]; total: number }>
+) {
+  return useQuery({
+    queryKey: brandKeys.adminList(params),
+    queryFn: async () => unwrapResult(await service.getAdminBrands(params)),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+    ...options,
   });
 }
 
-export function useCreateCategory() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: CreateCategoryInput) => service.createAdminCategory(data),
-    onSuccess: () => {
-      // Invalidate and refetch products list (adjust query key as needed)
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-    },
+export function useAdminBrandQuery(brandId: string, options?: QueryOptionsOf<BrandData>) {
+  return useQuery({
+    queryKey: brandKeys.adminDetail(brandId),
+    queryFn: async () => unwrapResult(await service.getAdminBrandById(brandId)),
+    enabled: Boolean(brandId),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    ...options,
   });
 }
 
-export function useCreateCollection() {
+export function useCreateBrand(options?: MutationOptionsOf<BrandData, CreateBrandInput>) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateCollectionInput) => service.createAdminCollection(data),
-    onSuccess: () => {
-      // Invalidate and refetch products list (adjust query key as needed)
-      queryClient.invalidateQueries({ queryKey: ['collections'] });
+    mutationFn: async (data: CreateBrandInput) =>
+      unwrapResult(await service.createAdminBrand(data)),
+    onSuccess: (brand, variables, onMutateResult, context) => {
+      queryClient.setQueryData(brandKeys.adminDetail(brand.id), brand);
+      queryClient.invalidateQueries({ queryKey: brandKeys.all });
+      options?.onSuccess?.(brand, variables, onMutateResult, context);
     },
+    ...options,
   });
 }
 
-export function useCreateSize() {
+/// category
+
+export function useAdminCategoriesQuery(
+  params?: AdminCategoryListParams,
+  options?: QueryOptionsOf<{ categories: CategoryData[]; total: number }>
+) {
+  return useQuery({
+    queryKey: categoryKeys.adminList(params),
+    queryFn: async () => unwrapResult(await service.getAdminCategories(params)),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+    ...options,
+  });
+}
+
+export function useAdminCategoryQuery(categoryId: string, options?: QueryOptionsOf<CategoryData>) {
+  return useQuery({
+    queryKey: categoryKeys.adminDetail(categoryId),
+    queryFn: async () => unwrapResult(await service.getAdminCategoryById(categoryId)),
+    enabled: Boolean(categoryId),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    ...options,
+  });
+}
+
+export function useCreateCategory(options?: MutationOptionsOf<CategoryData, CreateCategoryInput>) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateSizeInput) => service.createAdminSize(data),
-    onSuccess: () => {
-      // Invalidate and refetch products list (adjust query key as needed)
-      queryClient.invalidateQueries({ queryKey: ['sizes'] });
+    mutationFn: async (data: CreateCategoryInput) =>
+      unwrapResult(await service.createAdminCategory(data)),
+    onSuccess: (category, variables, onMutateResult, context) => {
+      queryClient.setQueryData(categoryKeys.adminDetail(category.id), category);
+      queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+      options?.onSuccess?.(category, variables, onMutateResult, context);
     },
+    ...options,
+  });
+}
+
+// collections
+export function useAdminCollectionsQuery(
+  params?: AdminCollectionListParams,
+  options?: QueryOptionsOf<{ collections: CollectionData[]; total: number }>
+) {
+  return useQuery({
+    queryKey: collectionKeys.adminList(params),
+    queryFn: async () => unwrapResult(await service.getAdminCollections(params)),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+    ...options,
+  });
+}
+
+export function useAdminCollectionQuery(
+  collectionId: string,
+  options?: QueryOptionsOf<CollectionData>
+) {
+  return useQuery({
+    queryKey: collectionKeys.adminDetail(collectionId),
+    queryFn: async () => unwrapResult(await service.getAdminCollectionById(collectionId)),
+    enabled: Boolean(collectionId),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    ...options,
+  });
+}
+
+export function useCreateCollection(
+  options?: MutationOptionsOf<CollectionData, CreateCollectionInput>
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateCollectionInput) =>
+      unwrapResult(await service.createAdminCollection(data)),
+    onSuccess: (collection, variables, onMutateResult, context) => {
+      queryClient.setQueryData(collectionKeys.adminDetail(collection.id), collection);
+      queryClient.invalidateQueries({ queryKey: collectionKeys.all });
+      options?.onSuccess?.(collection, variables, onMutateResult, context);
+    },
+    ...options,
+  });
+}
+
+// size
+export function useAdminSizesQuery(
+  params?: AdminSizeListParams,
+  options?: QueryOptionsOf<{ sizes: SizeData[]; total: number }>
+) {
+  return useQuery({
+    queryKey: sizeKeys.adminList(params),
+    queryFn: async () => unwrapResult(await service.getAdminSize(params)),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+    ...options,
+  });
+}
+
+export function useAdminSizeQuery(sizeId: string, options?: QueryOptionsOf<SizeData>) {
+  return useQuery({
+    queryKey: sizeKeys.adminDetail(sizeId),
+    queryFn: async () => unwrapResult(await service.getAdminSizeById(sizeId)),
+    enabled: Boolean(sizeId),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    ...options,
+  });
+}
+
+export function useCreateSize(options?: MutationOptionsOf<SizeData, CreateSizeInput>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateSizeInput) => unwrapResult(await service.createAdminSize(data)),
+    onSuccess: (size, variables, onMutateResult, context) => {
+      queryClient.setQueryData(sizeKeys.adminDetail(size.id), size);
+      queryClient.invalidateQueries({ queryKey: sizeKeys.all });
+      options?.onSuccess?.(size, variables, onMutateResult, context);
+    },
+    ...options,
   });
 }

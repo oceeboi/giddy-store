@@ -41,7 +41,7 @@ export default function CreateSizePage() {
             setServerSuccess({
               message: 'Size added successfully',
               data: {
-                size_name: response.success ? response.data.name : data.size_name,
+                size_name: response.name,
               },
             });
             resolve('Size added successfully');

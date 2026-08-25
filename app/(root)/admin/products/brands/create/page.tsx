@@ -35,8 +35,26 @@ export default function CreateBrand() {
     await toast.promise(
       new Promise((resolve, reject) => {
         mutate(data, {
-          onSuccess: (response) => resolve(response),
-          onError: (err) => reject(err),
+          onSuccess: (response) => {
+            setServerSuccess({
+              message: 'Brand add Successfully',
+              data: {
+                brand_name: response.name,
+              },
+            });
+            reset();
+            resolve(response);
+            setTimeout(() => {
+              setServerSuccess(null);
+            }, 2000);
+          },
+          onError: (err) => {
+            setServerError('Failed to add brand, retry');
+            reject(err);
+            setTimeout(() => {
+              setServerError(null);
+            }, 2000);
+          },
         });
       }),
       {

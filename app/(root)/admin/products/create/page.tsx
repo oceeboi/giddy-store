@@ -14,6 +14,12 @@ import { TagPillInput } from '@/components/shared/tag-pill';
 import { ColorPickerManager } from '@/components/shared/color-selector';
 import { ProductVariantMatrix } from '@/components/shared/product-variant-matrix';
 import { useCreateProduct } from '@/hooks/use-product.hook';
+import {
+  useAdminBrandsQuery,
+  useAdminCategoriesQuery,
+  useAdminCollectionsQuery,
+  useAdminSizesQuery,
+} from '@/hooks/use-catalog.hook';
 
 type Option = { value: string; label: string; id: string };
 
@@ -94,6 +100,10 @@ export default function AdminProductsPage() {
   const watchedColors = watch('product_colors') ?? [];
 
   const { mutate } = useCreateProduct();
+  const { data: brand } = useAdminBrandsQuery();
+  const { data: category } = useAdminCategoriesQuery();
+  const { data: collection } = useAdminCollectionsQuery();
+  const { data: available_size } = useAdminSizesQuery();
 
   const onSubmit = async (data: CreateProductInput) => {
     await toast.promise(
@@ -152,10 +162,19 @@ export default function AdminProductsPage() {
               className="font-archivo text-xs font-semibold uppercase tracking-wider text-black"
             >
               <CustomSelect
-                options={BRAND_OPTIONS}
+                options={
+                  brand?.brands.map((b) => {
+                    return {
+                      value: b.slug,
+                      id: b.id,
+                      label: b.name.toLocaleUpperCase(),
+                    };
+                  }) ?? []
+                }
                 value={field.value}
                 onChange={field.onChange}
                 disabled={isSubmitting}
+
                 hasError={!!errors.product_brand_id}
                 placeholder="Select a brand"
               />
@@ -176,7 +195,15 @@ export default function AdminProductsPage() {
               className="font-archivo text-xs font-semibold uppercase tracking-wider text-black"
             >
               <CustomSelect
-                options={CATEGORY_OPTIONS}
+                options={
+                  category?.categories.map((c) => {
+                    return {
+                      value: c.slug,
+                      id: c.id,
+                      label: c.name.toLocaleUpperCase(),
+                    };
+                  }) ?? []
+                }
                 value={field.value}
                 onChange={field.onChange}
                 disabled={isSubmitting}
@@ -200,7 +227,15 @@ export default function AdminProductsPage() {
               <OptionPicker
                 multiple
                 value={field.value ?? []}
-                options={COLLECTIONS_OPTIONS}
+                options={
+                  collection?.collections.map((cl) => {
+                    return {
+                      value: cl.slug,
+                      id: cl.id,
+                      label: cl.name.toLocaleLowerCase(),
+                    };
+                  }) ?? []
+                }
                 onChange={(next) => field.onChange(Array.isArray(next) ? next : next ? [next] : [])}
                 placeholder="Select collections"
                 disabled={isSubmitting}
@@ -361,7 +396,14 @@ export default function AdminProductsPage() {
             render={({ field }) => (
               <ProductVariantMatrix
                 colors={watchedColors}
-                availableSizes={AVAILABLE_SIZES}
+                availableSizes={
+                  available_size?.sizes.map((c) => {
+                    return {
+                      id: c.id,
+                      name: c.name.toLocaleUpperCase(),
+                    };
+                  }) ?? []
+                }
                 value={field.value ?? []}
                 onChange={field.onChange}
                 disabled={isSubmitting}

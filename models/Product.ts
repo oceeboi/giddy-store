@@ -8,3 +8,5 @@ const ProductSchema = new Schema({
     maxlength: [200, 'Product name cannot exceed 200 characters'],
   },
 });
+
+ProductSchema.index({ name: 1 });

@@ -49,7 +49,7 @@ export default function CreateCategoriesPage() {
             setServerSuccess({
               message: 'Category added successfully',
               data: {
-                category_name: response.success ? response.data.name : data.category_name,
+                category_name: response.name,
               },
             });
             resolve('Category added successfully');
