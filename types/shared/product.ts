@@ -69,6 +69,13 @@ const ProductType = {
   EQUIPMENT: 'equipment', // sports gear, electronics, etc.
 } as const;
 export type ProductType = (typeof ProductType)[keyof typeof ProductType];
+export const Gender = {
+  MEN: 'men',
+  WOMEN: 'women',
+  UNISEX: 'unisex',
+  KIDS: 'kids',
+} as const;
+export type Gender = (typeof Gender)[keyof typeof Gender];
 
 export type ClothingProductData = {
   id: string;
