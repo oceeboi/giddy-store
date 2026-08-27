@@ -30,4 +30,13 @@ function normalizeStringArray(values: string[] | undefined) {
   return [...new Set(nextValues)];
 }
 
-export { format_currency };
+function format_date(value: Date | string | null) {
+  if (!value) return 'Not available';
+
+  return new Intl.DateTimeFormat('en-NG', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+export { format_currency, format_date };

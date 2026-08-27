@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { Dispatch, SetStateAction, useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CustomSelect, Field, Input, Textarea } from '@/components/shared/form';
@@ -50,7 +50,7 @@ export function ProductUpdate({
   setValue,
 }: {
   id: string;
-  setValue: (value: boolean) => void;
+  setValue: Dispatch<SetStateAction<boolean>>;
 }) {
   const { data: product, isLoading: isProductLoading } = useAdminProductDetailQuery(id);
   const { data: brand } = useAdminBrandsQuery();

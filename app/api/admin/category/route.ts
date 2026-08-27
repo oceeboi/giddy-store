@@ -3,6 +3,7 @@ import connect_to_database from '@/lib/db';
 import Category from '@/models/Category';
 import { createCategory } from '@/schemas/create-catalogs.schema';
 import { slugify } from '@/utils/slug';
+import { Types } from 'mongoose';
 import { NextRequest } from 'next/server';
 
 const category_select_fields =
@@ -18,12 +19,33 @@ function format_validation_issues(issues: { path: PropertyKey[]; message: string
     }))
   );
 }
-
+export type ProductReference = {
+  id: string;
+  name: string | null;
+  slug: string | null;
+};
+type RawReference =
+  | { _id: Types.ObjectId | string; name?: string; slug?: string }
+  | Types.ObjectId
+  | string
+  | null
+  | undefined;
+function serializeReference(ref: RawReference): ProductReference | null {
+  if (!ref) return null;
+  if (typeof ref === 'string' || ref instanceof Types.ObjectId) {
+    return { id: ref.toString(), name: null, slug: null };
+  }
+  return {
+    id: ref._id.toString(),
+    name: ref.name ?? null,
+    slug: ref.slug ?? null,
+  };
+}
 function serialize_category(category: {
   _id: { toString(): string };
   name: string;
   slug: string;
-  parent: { toString(): string } | null;
+  parent: RawReference | null;
   image: string | null;
   description: string | null;
   active: boolean;
@@ -34,7 +56,7 @@ function serialize_category(category: {
     id: category._id.toString(),
     name: category.name,
     slug: category.slug,
-    parentId: category.parent?.toString() ?? null,
+    parent: serializeReference(category.parent) ?? null,
     image: category.image,
     description: category.description,
     active: category.active,
@@ -82,6 +104,7 @@ export async function GET(req: NextRequest) {
   const categories = await Category.find(query)
     .sort({ sortOrder: 1, name: 1 })
     .select(category_select_fields)
+    .populate('parent', 'name slug')
     .lean();
 
   return ok({

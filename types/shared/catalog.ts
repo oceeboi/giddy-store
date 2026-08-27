@@ -9,12 +9,17 @@ export type BrandData = {
   createdAt: Date;
   updatedAt: Date;
 };
-
+export type ProductReference = {
+  id: string;
+  name: string | null;
+  slug: string | null;
+};
 export type CategoryData = {
   id: string;
   name: string;
   slug: string;
   parentId: string | null;
+  parent: ProductReference | null;
   image: string | null;
   description: string | null;
   sortOrder: number;

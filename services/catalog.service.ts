@@ -21,6 +21,16 @@ import {
   CollectionData,
   SizeData,
 } from '@/types/shared/catalog';
+import {
+  UpdateBrandInput,
+  updateBrandSchema,
+  UpdateCategoryInput,
+  updateCategorySchema,
+  UpdateCollectionInput,
+  updateCollectionSchema,
+  UpdateSizeInput,
+  updateSizeSchema,
+} from '@/schemas/update-catalogs.schema';
 
 type ServiceResult<T> = { success: true; data: T } | { success: false; message: string };
 
@@ -186,6 +196,59 @@ export class CatalogService {
     }
   }
 
+  async updateAdminBrand(
+    brandId: string,
+    data: UpdateBrandInput
+  ): Promise<ServiceResult<BrandData>> {
+    const normalized_brand_id = brandId.trim();
+    if (!normalized_brand_id) {
+      return { success: false, message: 'Brand id is required.' };
+    }
+
+    const validation = CatalogService.validate(updateBrandSchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.patch<{ data: { brand: BrandData } }>(
+        `admin/brand/${encodeURIComponent(normalized_brand_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.brand };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to update brand.', {
+          404: 'Brand not found.',
+          409: 'A brand with this slug already exists.',
+        }),
+      };
+    }
+  }
+
+  async deleteAdminBrand(brandId: string): Promise<ServiceResult<{ deleted: boolean }>> {
+    const normalized_brand_id = brandId.trim();
+    if (!normalized_brand_id) {
+      return { success: false, message: 'Brand id is required.' };
+    }
+
+    try {
+      const response = await this.delete<{ data: { deleted: boolean } }>(
+        `admin/brand/${encodeURIComponent(normalized_brand_id)}`
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to delete brand.', {
+          404: 'Brand not found.',
+          409: 'This brand is still referenced by products.',
+        }),
+      };
+    }
+  }
+
   //   ############ category below
   async getAdminCategories(params?: AdminCategoryListParams): Promise<
     ServiceResult<{
@@ -249,6 +312,57 @@ export class CatalogService {
         message: CatalogService.fromHttpError(error, 'Failed to create category.', {
           404: 'Parent category not found.',
           409: 'A category with this slug already exists.',
+        }),
+      };
+    }
+  }
+  async updateAdminCategory(
+    categoryId: string,
+    data: UpdateCategoryInput
+  ): Promise<ServiceResult<CategoryData>> {
+    const normalized_category_id = categoryId.trim();
+    if (!normalized_category_id) {
+      return { success: false, message: 'Category id is required.' };
+    }
+
+    const validation = CatalogService.validate(updateCategorySchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.patch<{ data: { category: CategoryData } }>(
+        `admin/category/${encodeURIComponent(normalized_category_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.category };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to update category.', {
+          404: 'Category or parent category not found.',
+          409: 'A category with this slug already exists.',
+        }),
+      };
+    }
+  }
+  async deleteAdminCategory(categoryId: string): Promise<ServiceResult<{ deleted: boolean }>> {
+    const normalized_category_id = categoryId.trim();
+    if (!normalized_category_id) {
+      return { success: false, message: 'Category id is required.' };
+    }
+
+    try {
+      const response = await this.delete<{ data: { deleted: boolean } }>(
+        `admin/category/${encodeURIComponent(normalized_category_id)}`
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to delete category.', {
+          404: 'Category not found.',
+          409: 'This category is still referenced by child categories or products.',
         }),
       };
     }
@@ -323,6 +437,60 @@ export class CatalogService {
       };
     }
   }
+
+  async updateAdminCollection(
+    collectionId: string,
+    data: UpdateCollectionInput
+  ): Promise<ServiceResult<CollectionData>> {
+    const normalized_collection_id = collectionId.trim();
+    if (!normalized_collection_id) {
+      return { success: false, message: 'Collection id is required.' };
+    }
+
+    const validation = CatalogService.validate(updateCollectionSchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.patch<{ data: { collection: CollectionData } }>(
+        `admin/collection/${encodeURIComponent(normalized_collection_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.collection };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to update collection.', {
+          404: 'Collection not found.',
+          409: 'A collection with this slug already exists.',
+        }),
+      };
+    }
+  }
+
+  async deleteAdminCollection(collectionId: string): Promise<ServiceResult<{ deleted: boolean }>> {
+    const normalized_collection_id = collectionId.trim();
+    if (!normalized_collection_id) {
+      return { success: false, message: 'Collection id is required.' };
+    }
+
+    try {
+      const response = await this.delete<{ data: { deleted: boolean } }>(
+        `admin/collection/${encodeURIComponent(normalized_collection_id)}`
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to delete collection.', {
+          404: 'Collection not found.',
+          409: 'This collection is still referenced by products.',
+        }),
+      };
+    }
+  }
+
   //==== size below
 
   async getAdminSize(params?: AdminSizeListParams): Promise<
@@ -384,6 +552,55 @@ export class CatalogService {
         success: false,
         message: CatalogService.fromHttpError(error, 'Failed to create size.', {
           409: 'A size with this name already exists.',
+        }),
+      };
+    }
+  }
+
+  async updateAdminSize(sizeId: string, data: UpdateSizeInput): Promise<ServiceResult<SizeData>> {
+    const normalized_size_id = sizeId.trim();
+    if (!normalized_size_id) {
+      return { success: false, message: 'Size id is required.' };
+    }
+
+    const validation = CatalogService.validate(updateSizeSchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.patch<{ data: { size: SizeData } }>(
+        `admin/size/${encodeURIComponent(normalized_size_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.size };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to update size.', {
+          404: 'size not found.',
+        }),
+      };
+    }
+  }
+
+  async deleteAdminSize(sizeId: string): Promise<ServiceResult<{ deleted: boolean }>> {
+    const normalized_size_id = sizeId.trim();
+    if (!normalized_size_id) {
+      return { success: false, message: 'Size id is required.' };
+    }
+
+    try {
+      const response = await this.delete<{ data: { deleted: boolean } }>(
+        `admin/size/${encodeURIComponent(normalized_size_id)}`
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: CatalogService.fromHttpError(error, 'Failed to delete size.', {
+          404: 'Size not found.',
+          409: 'This size is still referenced by products.',
         }),
       };
     }

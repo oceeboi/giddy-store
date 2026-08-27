@@ -12,7 +12,7 @@ export default function AdminProductPage() {
   const table = useTable(
     {
       key: 'admin-product-table',
-      debugTable: true,
+      debugTable: false,
       features,
       columns: productColumns as any,
       data: data?.products ?? [],

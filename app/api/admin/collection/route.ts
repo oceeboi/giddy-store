@@ -5,8 +5,7 @@ import { createCollectionSchema } from '@/schemas/create-catalogs.schema';
 import { slugify } from '@/utils/slug';
 import { NextRequest } from 'next/server';
 
-const collection_select_fields =
-  'name slug description bannerImage active type rules sortOrder createdAt updatedAt';
+const collection_select_fields = 'name slug description image active';
 
 function format_validation_issues(issues: { path: PropertyKey[]; message: string }[]) {
   return validationErr(
@@ -34,7 +33,7 @@ function serialize_collection(collection: {
     name: collection.name,
     slug: collection.slug,
     description: collection.description,
-    bannerImage: collection.image,
+    image: collection.image,
     active: collection.active,
     createdAt: collection.createdAt,
     updatedAt: collection.updatedAt,
