@@ -121,7 +121,7 @@ export function ProductVariantMatrix({
                   )
                 }
                 className={cn(
-                  'px-3 py-2 sm:py-1.5 text-xs font-medium border transition-colors min-h-[36px] sm:min-h-0',
+                  'px-3 py-2 sm:py-1.5 text-xs font-medium border transition-colors min-h-9 sm:min-h-0',
                   isSelected
                     ? 'bg-black text-white border-black'
                     : 'bg-white text-neutral-800 border-neutral-300 hover:bg-neutral-100'
