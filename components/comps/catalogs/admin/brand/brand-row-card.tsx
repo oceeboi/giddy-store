@@ -125,7 +125,7 @@ export function BrandRowCard({ brand, onClick }: BrandRowCardProps) {
             onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center gap-1.5 text-xs text-neutral-600 hover:text-black dark:text-neutral-400 dark:hover:text-white"
           >
-            <span className="truncate max-w-[200px] font-mono text-[11px] underline">
+            <span className="truncate max-w-50 font-mono text-[11px] underline">
               {brand.website.replace(/^https?:\/\/(www\.)?/, '')}
             </span>
             <ExternalLink className="h-3 w-3 shrink-0 text-neutral-400" />
