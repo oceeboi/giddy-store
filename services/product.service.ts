@@ -1,9 +1,19 @@
 import { z } from 'zod';
 import { HTTPError } from 'ky';
 import http from '@/lib/ky';
-import { ClothingProductData } from '@/types/shared/product';
+import { ClothingProductData, Gender, ProductType } from '@/types/shared/product';
 import { CreateProductInput, createProductSchema } from '@/schemas/create-product.schema';
+import { UpdateProductInput, updateProductSchema } from '@/schemas/update-product.schema';
 
+export type AdminProductListQueryParams = {
+  search?: string;
+  active?: 'true' | 'false';
+  brand?: string;
+  category?: string;
+  collection?: string;
+  productType?: ProductType;
+  gender?: Gender;
+};
 type ServiceResult<T> = { success: true; data: T } | { success: false; message: string };
 
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -100,6 +110,42 @@ export class ProductService {
     return response.json() as Promise<T>;
   }
 
+  async getAdminProducts(
+    params?: AdminProductListQueryParams
+  ): Promise<ServiceResult<{ products: ClothingProductData[]; total: number }>> {
+    try {
+      const query = this.buildQuery(params);
+      const response = await this.get<{ data: { products: ClothingProductData[]; total: number } }>(
+        `admin/product${query}`
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch admin product list.'),
+      };
+    }
+  }
+
+  async getAdminProductById(productId: string): Promise<ServiceResult<ClothingProductData>> {
+    const normalizedProductId = productId.trim();
+    if (!normalizedProductId) return { success: false, message: 'Product id is required.' };
+
+    try {
+      const response = await this.get<{ data: { product: ClothingProductData } }>(
+        `admin/product/${encodeURIComponent(normalizedProductId)}`
+      );
+      return { success: true, data: response.data.product };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch admin product.', {
+          404: 'Product not found.',
+        }),
+      };
+    }
+  }
+
   async createAdminProduct(data: CreateProductInput): Promise<ServiceResult<ClothingProductData>> {
     const validation = ProductService.validate(createProductSchema, data);
     if (!validation.success) return validation;
@@ -118,6 +164,32 @@ export class ProductService {
           404: 'One or more related catalog records were not found.',
           409: 'A product with this slug already exists.',
         }),
+      };
+    }
+  }
+
+  async updateAdminProduct(
+    productId: string,
+    data: UpdateProductInput
+  ): Promise<ServiceResult<ClothingProductData>> {
+    const normalizedProductId = productId.trim();
+    if (!normalizedProductId) return { success: false, message: 'Product id is required.' };
+
+    const validation = updateProductSchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, message: validation.error.issues.map((i) => i.message).join(', ') };
+    }
+
+    try {
+      const response = await this.patch<{ data: { product: ClothingProductData } }>(
+        `admin/product/${encodeURIComponent(normalizedProductId)}`,
+        validation.data
+      );
+      return { success: true, data: response.data.product };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to update product.'),
       };
     }
   }

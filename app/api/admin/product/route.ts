@@ -7,7 +7,11 @@ import { createProductSchema, Gender } from '@/schemas/create-product.schema';
 import { slugify } from '@/utils/slug';
 import { Types } from 'mongoose';
 import { NextRequest } from 'next/server';
-import { validateProductRelations } from '@/lib/service-route/admin-product-route-helpers';
+import {
+  PRODUCT_SELECT_FIELDS,
+  serializeProduct,
+  validateProductRelations,
+} from '@/lib/service-route/admin-product-route-helpers';
 
 function format_validation_issues(issues: { path: PropertyKey[]; message: string }[]) {
   return validationErr(
@@ -19,103 +23,6 @@ function format_validation_issues(issues: { path: PropertyKey[]; message: string
     }))
   );
 }
-
-function serializeReference(reference: unknown) {
-  if (!reference) return null;
-  if (typeof reference === 'object' && '_id' in reference) {
-    const populatedReference = reference as {
-      _id: { toString(): string };
-      name?: string;
-      slug?: string;
-    };
-
-    return {
-      id: populatedReference._id.toString(),
-      name: populatedReference.name ?? null,
-      slug: populatedReference.slug ?? null,
-    };
-  }
-
-  return { id: String(reference), name: null, slug: null };
-}
-
-function serialize_product(product: any) {
-  return {
-    id: product._id.toString(),
-    name: product.name,
-    slug: product.slug,
-    brand: serializeReference(product.brand),
-    category: serializeReference(product.category),
-    collections: product.collections.map(serializeReference),
-    productType: product.productType,
-    gender: product.gender,
-    pricing: product.pricing
-      ? {
-          currency: product.pricing.currency,
-          basePrice: product.pricing.basePrice,
-          compareAtPrice: product.pricing.compareAtPrice ?? null,
-          costPrice: product.pricing.costPrice ?? null,
-        }
-      : null,
-    colors:
-      product.colors?.map((c: any) => ({
-        id: c._id.toString(),
-        name: c.name,
-        hexCode: c.hexCode ?? null,
-        swatchImage: c.swatchImage ?? null,
-      })) ?? [],
-    media:
-      product.media?.map((m: any) => ({
-        id: m._id?.toString() ?? null,
-        url: m.url,
-        alt: m.alt,
-        type: m.type,
-        order: m.order,
-        colorId: m.colorId ?? null,
-      })) ?? [],
-    variants:
-      product.variants?.map((v: any) => ({
-        id: v._id?.toString() ?? null,
-        colorId: v.colorId,
-        sizeId: v.sizeId?.toString(),
-        size: v.size,
-        barcode: v.barcode ?? null,
-        stockQuantity: v.stockQuantity,
-        reservedQuantity: v.reservedQuantity,
-        availableQuantity: v.availableQuantity,
-        reorderLevel: v.reorderLevel,
-        active: v.active,
-        priceOverride: v.priceOverride ?? null,
-      })) ?? [],
-    description: product.description
-      ? {
-          narrative: product.description.narrative ?? null,
-          styleCode: product.description.styleCode ?? null,
-          fitType: product.description.fitType ?? null,
-          fabricComposition: product.description.fabricComposition ?? null,
-          careInstructions: product.description.careInstructions ?? [],
-          releaseDate: product.description.releaseDate ?? null,
-          editorialHighlights: product.description.editorialHighlights ?? [],
-          additionalSections: product.description.additionalSections ?? [],
-        }
-      : null,
-    features: product.features ?? [],
-    seo: product.seo
-      ? {
-          title: product.seo.title,
-          description: product.seo.description,
-          keywords: product.seo.keywords,
-        }
-      : null,
-    tags: product.tags ?? [],
-    active: product.active ?? false,
-    publishedAt: product.publishedAt ?? null,
-    createdAt: product.createdAt,
-    updatedAt: product.updatedAt,
-  };
-}
-export const PRODUCT_SELECT_FIELDS =
-  'name slug brand category collections productType gender colors description features media variants pricing seo tags active publishedAt createdAt updatedAt';
 
 // Helper to sanitize & validate incoming URL search params
 function buildProductQuery(req: NextRequest) {
@@ -201,7 +108,7 @@ export async function GET(req: NextRequest) {
     .lean();
 
   return ok({
-    products: products.map(serialize_product),
+    products: products.map(serializeProduct as any),
     total: products.length,
   });
 }
@@ -345,5 +252,5 @@ export async function POST(req: NextRequest) {
   //   ...requestMeta(req),
   // });
 
-  return ok({ product: serialize_product(populatedProduct) }, 201);
+  return ok({ product: serializeProduct(populatedProduct as any) }, 201);
 }

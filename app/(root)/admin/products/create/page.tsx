@@ -23,14 +23,6 @@ import {
 
 type Option = { value: string; label: string; id: string };
 
-const CATEGORY_OPTIONS: Option[] = [
-  { value: 't-shirts', label: 'T-Shirts', id: '6a7b4c7734e571b38b088a23' },
-  { value: 'hoodies', label: 'Hoodies', id: '6a7b4c7734e571b38b088a24' },
-  { value: 'pants', label: 'Pants', id: '6a7b4c7734e571b38b088a25' },
-  { value: 'sneakers', label: 'Sneakers', id: '6a7b4c7734e571b38b088a26' },
-  { value: 'accessories', label: 'Accessories', id: '6a7b4c7734e571b38b088a27' },
-];
-
 const PRODUCT_TYPE_OPTIONS: Option[] = [
   { value: 'sneaker', label: 'SNEAKER', id: 'sneaker' },
   { value: 'apparel', label: 'APPAREL', id: 'apparel' },
@@ -43,33 +35,6 @@ const GENDER_OPTIONS: Option[] = [
   { value: 'women', label: 'Women', id: 'women' },
   { value: 'unisex', label: 'Unisex', id: 'unisex' },
   { value: 'kids', label: 'Kids', id: 'kids' },
-];
-
-const BRAND_OPTIONS: Option[] = [
-  { value: 'nike', label: 'Nike', id: '6a7b4c7734e571b38b088a28' },
-  { value: 'adidas', label: 'Adidas', id: '6a7b4c7734e571b38b088a29' },
-  { value: 'puma', label: 'Puma', id: '6a7b4c7734e571b38b088a30' },
-  { value: 'reebok', label: 'Reebok', id: '6a7b4c7734e571b38b088a31' },
-  { value: 'new-balance', label: 'New Balance', id: '6a7b4c7734e571b38b088a32' },
-];
-
-const COLLECTIONS_OPTIONS: Option[] = [
-  { value: 'SummerS22', label: 'Summer', id: '6a7b4c7734e571b38b088a23' },
-  { value: 'FallAutumn22', label: 'Fall / Autumn', id: '6a7b4c7734e571b38b088a24' },
-  { value: 'WinterW22', label: 'Winter', id: '6a7b4c7734e571b38b088a25' },
-  { value: 'SpringS23', label: 'Spring', id: '6a7b4c7734e571b38b088a26' },
-  { value: 'SummerS23', label: 'Summer 2023', id: '6a7b4c7734e571b38b088a27' },
-  { value: 'HolidayFestive23', label: 'Holiday & Festive', id: '6a7b4c7734e571b38b088a28' },
-  { value: 'EssentialsBasic', label: 'Core Essentials', id: '6a7b4c7734e571b38b088a29' },
-  { value: 'LimitedEdition', label: 'Limited Edition', id: '6a7b4c7734e571b38b088a2a' },
-];
-
-const AVAILABLE_SIZES = [
-  { id: '6a7b4c7734e571b38b088b01', name: 'US 7 / EU 40' },
-  { id: '6a7b4c7734e571b38b088b02', name: 'US 8 / EU 41' },
-  { id: '6a7b4c7734e571b38b088b03', name: 'US 9 / EU 42' },
-  { id: '6a7b4c7734e571b38b088b04', name: 'US 10 / EU 43' },
-  { id: '6a7b4c7734e571b38b088b05', name: 'US 11 / EU 44' },
 ];
 
 export default function AdminProductsPage() {
