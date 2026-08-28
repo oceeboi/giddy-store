@@ -6,6 +6,8 @@ import { EllipsisVertical } from 'lucide-react';
 import { Sheet } from '@/components/shared';
 import { useState } from 'react';
 import { ProductUpdate } from '@/components/comps/products/admin/product-update';
+import { useUpdateAdminProductMutation } from '@/hooks/use-product.hook';
+import { toast } from '@/components/toast/toast';
 
 // 3. New in V9! Tell the table which features and row models we want to use.
 // In this case, this will be a basic table with no additional features.
@@ -172,19 +174,58 @@ export const productColumns = [
   // 8. Status Badge
   columnHelper.accessor('active', {
     header: 'Status',
-    cell: ({ getValue }) => {
+    cell: ({ getValue, row }) => {
       // `active` is optional on ClothingProductData — treat missing as Draft, not Active.
+      const { mutate: update_product } = useUpdateAdminProductMutation();
       const isActive = getValue() ?? false;
+      const product = row.original;
+
+      async function toggleState(b: boolean) {
+        await toast.promise(
+          new Promise((resolve, reject) => {
+            update_product(
+              {
+                data: {
+                  product_name: product.name,
+                  product_brand: product.brand?.id,
+                  product_category: product.category?.id,
+                  product_collections:
+                    product.collections?.map((c: any) => c.id ?? c._id ?? c) ?? [],
+                  product_active: !product.active,
+                },
+                productId: product.id,
+              },
+              {
+                onSuccess: (response) => {
+                  resolve(response);
+                },
+                onError: (err) => reject(err),
+              }
+            );
+          }),
+          {
+            pending: 'Updating.. product…',
+            success: 'Product Updated',
+            error: (err) => (err instanceof Error ? err.message : 'Something went wrong'),
+          }
+        );
+      }
       return (
-        <span
-          className={`inline-flex items-center rounded-none px-2.5 py-0.5 text-xs font-medium ${
-            isActive
-              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-              : 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400'
-          }`}
+        <div
+          onClick={() => {
+            toggleState(isActive);
+          }}
         >
-          {isActive ? 'Active' : 'Draft'}
-        </span>
+          <span
+            className={`inline-flex items-center rounded-none px-2.5 py-0.5 text-xs font-medium ${
+              isActive
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                : 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400'
+            }`}
+          >
+            {isActive ? 'Active' : 'Draft'}
+          </span>
+        </div>
       );
     },
   }),

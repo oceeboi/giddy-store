@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
     barcode: variant.barcode ?? null,
     stockQuantity: variant.stockQuantity,
     reservedQuantity: variant.reservedQuantity,
-    availableQuantity: variant.availableQuantity,
+    availableQuantity: variant.stockQuantity,
     reorderLevel: variant.reorderLevel,
     active: variant.active,
     priceOverride: variant.priceOverride ?? null,

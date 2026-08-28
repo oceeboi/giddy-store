@@ -1,11 +1,22 @@
 'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Grid2x2,
+  Grid3x3,
+  LayoutGrid,
+  Rows,
+} from 'lucide-react';
+
 import { ProductCard } from '@/components/comps';
 import { Breadcrumb, FilterSheet, FilterSidebarDesktop, SortModal } from '@/components/shared';
-import { SAMPLE_CLOTHING } from '@/constants/sample';
+import { usePublicProductsQuery } from '@/hooks/use-product.hook';
 import { cn } from '@/lib/utils';
-import { Check, ChevronDown, Grid2x2, Grid3x3, LayoutGrid, Rows } from 'lucide-react';
-import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
 
 type PublicProductListParams = {
   search?: string;
@@ -14,6 +25,7 @@ type PublicProductListParams = {
   collection?: string;
   productType?: string;
   gender?: string;
+  color?: string;
   min_price?: number | string;
   max_price?: number | string;
   size?: string;
@@ -46,9 +58,8 @@ export default function ShoppingPage() {
   const params = useParams<{ id?: string }>();
 
   const [isSortModalOpen, setIsSortModalOpen] = useState<boolean>(false);
-  const [gridCols, setGridCols] = useState<GridColumnType>(3); // Fallback default to 3 columns
+  const [gridCols, setGridCols] = useState<GridColumnType>(3);
 
-  // Load grid layout preference from localStorage on mount
   useEffect(() => {
     const savedCols = localStorage.getItem(GRID_STORAGE_KEY);
     if (savedCols) {
@@ -59,13 +70,12 @@ export default function ShoppingPage() {
     }
   }, []);
 
-  // Update localStorage when layout preference changes
   function handleGridChange(cols: GridColumnType) {
     setGridCols(cols);
     localStorage.setItem(GRID_STORAGE_KEY, String(cols));
   }
 
-  // Extract and map URL SearchParams to `PublicProductListParams`
+  // Extract search params with standard fallback limit of 16 items per page
   const queryParams = useMemo<PublicProductListParams>(() => {
     const category = searchParams.get('category')?.trim() || undefined;
     const brand = searchParams.get('brand')?.trim() || undefined;
@@ -73,19 +83,21 @@ export default function ShoppingPage() {
     const productType = searchParams.get('productType')?.trim() || undefined;
     const gender = searchParams.get('gender')?.trim() || undefined;
     const search = searchParams.get('search')?.trim() || undefined;
+    const color = searchParams.get('color')?.trim() || undefined;
     const min_price = searchParams.get('min_price') || undefined;
     const max_price = searchParams.get('max_price') || undefined;
     const size = searchParams.get('size')?.trim() || undefined;
     const in_stock_param = searchParams.get('in_stock');
     const sort = (searchParams.get('sort') as SortType) || 'newest';
-    const page = searchParams.get('page') ? Number(searchParams.get('page')) : undefined;
-    const limit = searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined;
+    const page = searchParams.get('page') ? Number(searchParams.get('page')) : 1;
+    const limit = searchParams.get('limit') ? Number(searchParams.get('limit')) : 16;
 
     let in_stock: PublicProductListParams['in_stock'] = undefined;
     if (in_stock_param === 'true') in_stock = 'true';
     if (in_stock_param === 'false') in_stock = 'false';
 
     return {
+      color,
       search,
       brand,
       category,
@@ -102,33 +114,79 @@ export default function ShoppingPage() {
     };
   }, [searchParams]);
 
-  // Determine header title fallback
+  const { data: clothing_data, isLoading } = usePublicProductsQuery(queryParams);
+
+  const pagination = clothing_data?.pagination ?? {
+    page: Number(queryParams.page || 1),
+    limit: Number(queryParams.limit || 16),
+    total: 0,
+    totalPages: 1,
+  };
+
+  const currentPage = pagination.page;
+  const totalPages = pagination.totalPages;
+  const totalItems = pagination.total;
+
   const productName =
     queryParams.category ||
     queryParams.brand ||
     queryParams.search ||
     params?.id ||
+    queryParams.color ||
     `MEN'S COLLECTION`;
 
   const selectedSort = queryParams.sort || 'newest';
 
-  // Update URL parameters when changing sort
-  function handleSortSelect(sortOption: SortType) {
-    setIsSortModalOpen(false);
-
+  // Navigation handlers
+  function handleParamChange(key: string, value: string | number | null) {
     const updatedParams = new URLSearchParams(searchParams.toString());
-    updatedParams.set('sort', sortOption);
-    updatedParams.delete('page'); // Reset to page 1 on sort change
+    if (value === null || value === undefined) {
+      updatedParams.delete(key);
+    } else {
+      updatedParams.set(key, String(value));
+    }
     router.push(`${pathname}?${updatedParams.toString()}`);
   }
 
-  // Dynamic CSS helper for grid column selection
+  function handleSortSelect(sortOption: SortType) {
+    setIsSortModalOpen(false);
+    const updatedParams = new URLSearchParams(searchParams.toString());
+    updatedParams.set('sort', sortOption);
+    updatedParams.set('page', '1'); // Reset to page 1 on sort change
+    router.push(`${pathname}?${updatedParams.toString()}`);
+  }
+
+  function handlePageChange(newPage: number) {
+    if (newPage < 1 || newPage > totalPages || newPage === currentPage) return;
+    handleParamChange('page', newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Generate pagination links array with ellipsis calculations
+  const paginationRange = useMemo(() => {
+    const range: (number | '...')[] = [];
+    const delta = 1;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+        range.push(i);
+      } else if (range[range.length - 1] !== '...') {
+        range.push('...');
+      }
+    }
+    return range;
+  }, [currentPage, totalPages]);
+
   const gridClassMap: Record<GridColumnType, string> = {
     1: 'grid-cols-1',
     2: 'grid-cols-1 sm:grid-cols-2',
     3: 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3',
     4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
   };
+
+  // Showing X - Y of Z text calculation
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pagination.limit + 1;
+  const endItem = Math.min(currentPage * pagination.limit, totalItems);
 
   return (
     <section className="min-h-screen bg-white">
@@ -143,7 +201,7 @@ export default function ShoppingPage() {
       </section>
 
       {/* Main Content Layout */}
-      <section className="px-4 lg:px-12 pt-8 lg:pb-16">
+      <section className="px-4 lg:px-12 pt-8 pb-16">
         <div className="flex flex-col gap-8 lg:flex-row items-start">
           {/* Sidebar Area */}
           <aside className="w-full lg:w-64 shrink-0">
@@ -156,13 +214,12 @@ export default function ShoppingPage() {
                   className="flex flex-1 items-center justify-center gap-1 border border-neutral-400 px-3 py-3 text-sm font-medium whitespace-nowrap bg-white text-black"
                 >
                   <span className="font-archivo text-xs">Sort by:</span>
-                  <span className="font-archivo-black text-xs truncate max-w-[120px]">
+                  <span className="font-archivo-black text-xs truncate max-w-30">
                     {SORT_DATA_TYPE[selectedSort]}
                   </span>
                 </button>
               </div>
 
-              {/* Mobile Sort Overlay Modal */}
               <SortModal
                 open={isSortModalOpen}
                 onClose={() => setIsSortModalOpen(false)}
@@ -178,11 +235,15 @@ export default function ShoppingPage() {
           </aside>
 
           {/* Product Catalog Display Area */}
-          <main className="flex-1 min-w-0 w-full">
-            {/* Desktop Top Header Bar (Product Count, Sort Dropdown & Grid Switcher) */}
+          <main className="flex-1 min-w-0 w-full ">
+            {/* Desktop Header Controls Bar */}
             <div className="hidden lg:flex items-center justify-between pb-4 mb-6 border-b border-gray-200">
               <p className="text-xs font-archivo font-medium text-gray-500">
-                Showing <span className="font-bold text-black">5</span> products
+                Showing{' '}
+                <span className="font-bold text-black">
+                  {startItem}-{endItem}
+                </span>{' '}
+                of <span className="font-bold text-black">{totalItems}</span> products
               </p>
 
               <div className="flex items-center gap-6">
@@ -224,64 +285,121 @@ export default function ShoppingPage() {
 
                 {/* Persistent Grid Layout Column Switcher */}
                 <div className="flex items-center gap-1 border border-gray-200 rounded-md p-0.5 bg-gray-50">
-                  <button
-                    onClick={() => handleGridChange(1)}
-                    title="1 Column (List)"
-                    className={cn(
-                      'p-1.5 rounded transition-colors',
-                      gridCols === 1
-                        ? 'bg-black text-white shadow-xs'
-                        : 'text-gray-500 hover:text-black'
-                    )}
-                  >
-                    <Rows className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleGridChange(2)}
-                    title="2 Columns"
-                    className={cn(
-                      'p-1.5 rounded transition-colors',
-                      gridCols === 2
-                        ? 'bg-black text-white shadow-xs'
-                        : 'text-gray-500 hover:text-black'
-                    )}
-                  >
-                    <Grid2x2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleGridChange(3)}
-                    title="3 Columns"
-                    className={cn(
-                      'p-1.5 rounded transition-colors',
-                      gridCols === 3
-                        ? 'bg-black text-white shadow-xs'
-                        : 'text-gray-500 hover:text-black'
-                    )}
-                  >
-                    <Grid3x3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleGridChange(4)}
-                    title="4 Columns"
-                    className={cn(
-                      'p-1.5 rounded transition-colors',
-                      gridCols === 4
-                        ? 'bg-black text-white shadow-xs'
-                        : 'text-gray-500 hover:text-black'
-                    )}
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </button>
+                  {(
+                    [
+                      { cols: 1, icon: Rows, title: '1 Column (List)' },
+                      { cols: 2, icon: Grid2x2, title: '2 Columns' },
+                      { cols: 3, icon: Grid3x3, title: '3 Columns' },
+                      { cols: 4, icon: LayoutGrid, title: '4 Columns' },
+                    ] as const
+                  ).map(({ cols, icon: Icon, title }) => (
+                    <button
+                      key={cols}
+                      onClick={() => handleGridChange(cols)}
+                      title={title}
+                      className={cn(
+                        'p-1.5 rounded transition-colors',
+                        gridCols === cols
+                          ? 'bg-black text-white shadow-xs'
+                          : 'text-gray-500 hover:text-black'
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
+            {/* Product Cards Grid & Loading Skeleton */}
+            {isLoading ? (
+              <div className={cn('grid gap-x-4 gap-y-8', gridClassMap[gridCols])}>
+                {Array.from({ length: 8 }).map((_, idx) => (
+                  <div key={idx} className="animate-pulse flex flex-col gap-3">
+                    <div className="aspect-3/4 w-full bg-neutral-200 dark:bg-neutral-800" />
+                    <div className="h-4 w-2/3 bg-neutral-200 dark:bg-neutral-800" />
+                    <div className="h-4 w-1/3 bg-neutral-200 dark:bg-neutral-800" />
+                  </div>
+                ))}
+              </div>
+            ) : clothing_data?.products.length === 0 ? (
+              <div className="border border-gray-200 py-16 text-center">
+                <p className="font-archivo text-base font-semibold text-gray-900">
+                  No products found
+                </p>
+                <p className="font-archivo text-xs text-gray-500 mt-1">
+                  Try clearing some filters to see more results.
+                </p>
+              </div>
+            ) : (
+              <div className={cn('grid gap-x-4 gap-y-8 min-h-[50dvh]', gridClassMap[gridCols])}>
+                {clothing_data?.products.map((product) => (
+                  <ProductCard key={product.id} data={product} />
+                ))}
+              </div>
+            )}
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 pt-6 font-archivo">
+                <p className="text-xs text-gray-500">
+                  Page <span className="font-semibold text-black">{currentPage}</span> of{' '}
+                  <span className="font-semibold text-black">{totalPages}</span>
+                </p>
 
-            {/* Product Cards Grid */}
-            <div className={cn('grid gap-x-4 gap-y-8', gridClassMap[gridCols])}>
-              {Array.from({ length: 5 }).map((_, index) => (
-                <ProductCard key={index} data={SAMPLE_CLOTHING} />
-              ))}
-            </div>
+                <div className="flex items-center gap-1.5">
+                  {/* Previous Button */}
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                    className="flex h-9 items-center justify-center gap-1 border border-gray-300 bg-white px-3 text-xs font-semibold text-black transition-colors hover:border-black disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span>Prev</span>
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1">
+                    {paginationRange.map((item, index) => {
+                      if (item === '...') {
+                        return (
+                          <span
+                            key={`ellipsis-${index}`}
+                            className="flex h-9 w-8 items-center justify-center text-xs text-gray-400"
+                          >
+                            …
+                          </span>
+                        );
+                      }
+
+                      const isSelected = item === currentPage;
+                      return (
+                        <button
+                          key={item}
+                          onClick={() => handlePageChange(item)}
+                          className={cn(
+                            'flex h-9 w-9 items-center justify-center border text-xs font-semibold transition-colors',
+                            isSelected
+                              ? 'border-black bg-black text-white'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-black'
+                          )}
+                        >
+                          {item}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Next Button */}
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                    className="flex h-9 items-center justify-center gap-1 border border-gray-300 bg-white px-3 text-xs font-semibold text-black transition-colors hover:border-black disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </section>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import Image from 'next/image';
 import { ProductMedia } from '@/types/shared/product';
 
 interface ProductImageProps {
@@ -8,8 +9,17 @@ interface ProductImageProps {
   selectedColorId?: string | null;
 }
 
+// Helper to leverage CloudFront / AWS Lambda@Edge image resizing if configured
+const getOptimizedUrl = (url: string, width: number, quality = 80) => {
+  if (!url) return '';
+  // If using CloudFront URL transformer, append queries or return raw URL if pre-transformed
+  return `${url}?w=${width}&q=${quality}&format=webp`;
+};
+
 export function ProductImage({ image_data, selectedColorId }: ProductImageProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
   const [activeIndex, setActiveIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalIndex, setModalIndex] = useState(0);
@@ -28,37 +38,44 @@ export function ProductImage({ image_data, selectedColorId }: ProductImageProps)
     return [...image_data].sort(byOrder);
   }, [image_data, selectedColorId]);
 
+  // Reset scroll on color change
   useEffect(() => {
     if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({ left: 0, behavior: 'auto' });
+      scrollContainerRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
     }
     setActiveIndex(0);
   }, [selectedColorId]);
 
+  // 1. Optimize scroll listener via requestAnimationFrame (removes scroll jank/lag metrics)
+  const handleScroll = useCallback(() => {
+    if (animationFrameRef.current) return;
+
+    animationFrameRef.current = requestAnimationFrame(() => {
+      const el = scrollContainerRef.current;
+      if (el && el.clientWidth > 0) {
+        const index = Math.round(el.scrollLeft / el.clientWidth);
+        setActiveIndex(index);
+      }
+      animationFrameRef.current = null;
+    });
+  }, []);
+
   const scroll = (direction: 'left' | 'right') => {
     const el = scrollContainerRef.current;
     if (!el) return;
-    const { clientWidth } = el;
-    const scrollAmount = direction === 'left' ? -clientWidth : clientWidth;
+    const scrollAmount = direction === 'left' ? -el.clientWidth : el.clientWidth;
     el.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-  };
-
-  const handleScroll = () => {
-    const el = scrollContainerRef.current;
-    if (!el || el.clientWidth === 0) return;
-    const index = Math.round(el.scrollLeft / el.clientWidth);
-    setActiveIndex(index);
   };
 
   const openModal = (index: number) => {
     setModalIndex(index);
     setIsModalOpen(true);
-    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    document.body.style.overflow = 'hidden';
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    document.body.style.overflow = 'unset';
+    document.body.style.overflow = '';
   };
 
   const handleModalNavigate = useCallback(
@@ -67,15 +84,28 @@ export function ProductImage({ image_data, selectedColorId }: ProductImageProps)
       setModalIndex((prev) => {
         if (direction === 'prev') {
           return prev === 0 ? sortedImages.length - 1 : prev - 1;
-        } else {
-          return prev === sortedImages.length - 1 ? 0 : prev + 1;
         }
+        return prev === sortedImages.length - 1 ? 0 : prev + 1;
       });
     },
     [sortedImages.length]
   );
 
-  // Keyboard navigation for the modal
+  // 2. Preload adjacent high-res modal images to eliminate latency when clicking Next/Prev
+  useEffect(() => {
+    if (!isModalOpen || sortedImages.length <= 1) return;
+
+    const nextIdx = (modalIndex + 1) % sortedImages.length;
+    const prevIdx = (modalIndex - 1 + sortedImages.length) % sortedImages.length;
+
+    const imgNext = new window.Image();
+    imgNext.src = sortedImages[nextIdx].url;
+
+    const imgPrev = new window.Image();
+    imgPrev.src = sortedImages[prevIdx].url;
+  }, [isModalOpen, modalIndex, sortedImages]);
+
+  // 3. Hotkey Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isModalOpen) return;
@@ -92,84 +122,78 @@ export function ProductImage({ image_data, selectedColorId }: ProductImageProps)
 
   return (
     <div className="w-full h-full relative group overflow-hidden">
-      {/* Scrollable Image Track */}
+      {/* Scrollable Gallery Track */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
         className="flex overflow-x-auto w-full h-full scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none snap-x snap-mandatory [-webkit-overflow-scrolling:touch]"
       >
-        {sortedImages.map((image, index) => (
-          <div
-            key={`${image.colorId ?? 'generic'}-${image.order}-${index}`}
-            onClick={() => openModal(index)}
-            className="w-full h-full cursor-zoom-in shrink-0 grow-0 snap-center relative block"
-          >
-            <img
-              src={image.url}
-              alt={image.alt || `Product Image ${index + 1}`}
-              className="w-full h-full object-cover block"
-              loading={index === 0 ? 'eager' : 'lazy'}
-            />
-          </div>
-        ))}
+        {sortedImages.map((image, index) => {
+          const isLCP = index === 0;
+          return (
+            <div
+              key={`${image.colorId ?? 'generic'}-${image.order}-${index}`}
+              onClick={() => openModal(index)}
+              className="w-full h-full cursor-zoom-in shrink-0 grow-0 snap-center relative aspect-3/4 bg-neutral-100"
+            >
+              <Image
+                src={image.url}
+                alt={image.alt || `Product Image ${index + 1}`}
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                priority={isLCP}
+                quality={isLCP ? 85 : 75}
+                className="object-cover w-full h-full"
+              />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Gallery Navigation Arrows */}
+      {/* Control Overlay Buttons */}
       {sortedImages.length > 1 && (
         <>
           <button
             onClick={() => scroll('left')}
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2.5 bg-transparent hover:bg-white/80 rounded-full text-gray-800 transition-all opacity-100 focus:opacity-100"
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 bg-transparent hover:bg-white backdrop-blur-sm rounded-full text-gray-800 transition-all shadow-md focus:outline-none"
             aria-label="Previous image"
           >
             <svg
-              width="36"
-              height="36"
-              viewBox="0 0 48 48"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
               fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+              stroke="currentColor"
+              strokeWidth="2"
             >
-              <rect width="48" height="48" transform="matrix(-1 0 0 1 48 0)" fill="none"></rect>
-              <path
-                d="M32 38L16 24L32 10"
-                stroke="black"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              ></path>
+              <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
 
           <button
             onClick={() => scroll('right')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2.5 bg-transparent hover:bg-white/80 rounded-full text-gray-800 transition-all opacity-100 focus:opacity-100"
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 bg-transparent hover:bg-white backdrop-blur-sm rounded-full text-gray-800 transition-all shadow-md focus:outline-none"
             aria-label="Next image"
           >
             <svg
-              width="36"
-              height="36"
-              viewBox="0 0 48 48"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
               fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+              stroke="currentColor"
+              strokeWidth="2"
             >
-              <rect width="48" height="48" fill="none"></rect>
-              <path
-                d="M16 38L32 24L16 10"
-                stroke="black"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              ></path>
+              <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
 
-          {/* Pagination Dots */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+          {/* Optimized Dots */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-1.5 pointer-events-none">
             {sortedImages.map((_, index) => (
               <span
                 key={index}
-                className={`h-1.5 rounded-full transition-all duration-200 ${
-                  index === activeIndex ? 'w-4 bg-black' : 'w-1.5 bg-black/30'
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === activeIndex ? 'w-5 bg-black' : 'w-1.5 bg-black/30'
                 }`}
               />
             ))}
@@ -177,16 +201,14 @@ export function ProductImage({ image_data, selectedColorId }: ProductImageProps)
         </>
       )}
 
-      {/* Built-in High Quality Lightbox Modal */}
+      {/* Lightbox Modal */}
       {isModalOpen && currentModalImage && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Image lightbox"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 md:p-8 animate-fadeIn"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 md:p-8"
           onClick={closeModal}
         >
-          {/* Close Button */}
           <button
             onClick={closeModal}
             className="absolute top-5 right-5 z-50 p-3 rounded-full bg-black/50 hover:bg-black text-white transition-all focus:outline-none"
@@ -202,11 +224,10 @@ export function ProductImage({ image_data, selectedColorId }: ProductImageProps)
             </svg>
           </button>
 
-          {/* Modal Left Navigation */}
           {sortedImages.length > 1 && (
             <button
               onClick={(e) => handleModalNavigate('prev', e)}
-              className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-50 p-3 rounded-full bg-black/50 hover:bg-black text-white transition-all focus:outline-none"
+              className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-50 p-3 rounded-full bg-black/40 hover:bg-black text-white transition-all focus:outline-none"
               aria-label="Previous modal image"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,28 +241,29 @@ export function ProductImage({ image_data, selectedColorId }: ProductImageProps)
             </button>
           )}
 
-          {/* Main Modal Image Container */}
           <div
             className="relative max-w-5xl max-h-[85vh] w-full h-full flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
+            <Image
               src={currentModalImage.url}
               alt={currentModalImage.alt || `Product Lightbox Image ${modalIndex + 1}`}
-              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+              fill
+              sizes="100vw"
+              quality={90}
+              priority
+              className="object-contain"
             />
 
-            {/* Image counter indicator in modal */}
-            <div className="absolute -bottom-7.5 font-archivo left-1/2 -translate-x-1/2 text-white/80 text-sm font-medium tracking-wide">
+            <div className="absolute -bottom-8 font-archivo left-1/2 -translate-x-1/2 text-white/80 text-sm font-medium tracking-wide">
               {modalIndex + 1} / {sortedImages.length}
             </div>
           </div>
 
-          {/* Modal Right Navigation */}
           {sortedImages.length > 1 && (
             <button
               onClick={(e) => handleModalNavigate('next', e)}
-              className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-50 p-3 rounded-full bg-black/50 hover:bg-black text-white transition-all focus:outline-none"
+              className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-50 p-3 rounded-full bg-black/40 hover:bg-black text-white transition-all focus:outline-none"
               aria-label="Next modal image"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

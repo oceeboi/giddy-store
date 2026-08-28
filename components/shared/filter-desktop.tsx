@@ -207,7 +207,7 @@ export function FilterSidebarDesktop({ className }: { className?: string }) {
           {/* CATEGORIES */}
           <Accordion.Item value="categories" className="border-b border-gray-100">
             <Accordion.Trigger openIcon={<PlusICon />} closeIcon={<CloseIcon />} className="py-4">
-              <span className="font-semibold font-archivo uppercase text-black">Product type</span>
+              <span className="font-semibold font-archivo uppercase text-black">Catgory</span>
             </Accordion.Trigger>
             <Accordion.Content className="pb-4">
               <div className="grid grid-cols-2 gap-2">

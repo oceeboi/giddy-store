@@ -14,6 +14,34 @@ export type AdminProductListQueryParams = {
   productType?: ProductType;
   gender?: Gender;
 };
+export type PublicProductListParams = {
+  search?: string;
+  brand?: string;
+  category?: string;
+  collection?: string;
+  productType?: string;
+  gender?: string;
+  color?: string;
+  min_price?: number | string;
+  max_price?: number | string;
+  size?: string;
+  in_stock?: 'true' | 'false' | boolean;
+  sort?: SortType;
+  page?: number | string;
+  limit?: number | string;
+};
+export type BestSellerListParams = {
+  page?: number | string;
+  limit?: number | string;
+};
+export type ProductPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+type SortType = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc';
 type ServiceResult<T> = { success: true; data: T } | { success: false; message: string };
 
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -145,7 +173,27 @@ export class ProductService {
       };
     }
   }
+  async getProductBySlug(slug: string): Promise<ServiceResult<ClothingProductData>> {
+    const normalized_slug = slug.trim();
+    if (!normalized_slug) {
+      return { success: false, message: 'Product slug is required.' };
+    }
 
+    try {
+      const response = await this.get<{ data: { product: ClothingProductData } }>(
+        `products/${encodeURIComponent(normalized_slug)}`
+      );
+
+      return { success: true, data: response.data.product };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch product details.', {
+          404: 'Product not found.',
+        }),
+      };
+    }
+  }
   async createAdminProduct(data: CreateProductInput): Promise<ServiceResult<ClothingProductData>> {
     const validation = ProductService.validate(createProductSchema, data);
     if (!validation.success) return validation;
@@ -190,6 +238,30 @@ export class ProductService {
       return {
         success: false,
         message: ProductService.fromHttpError(error, 'Failed to update product.'),
+      };
+    }
+  }
+
+  async getProducts(params?: PublicProductListParams): Promise<
+    ServiceResult<{
+      products: ClothingProductData[];
+      pagination: ProductPagination;
+    }>
+  > {
+    try {
+      const query = this.buildQuery(params);
+      const response = await this.get<{
+        data: {
+          products: ClothingProductData[];
+          pagination: ProductPagination;
+        };
+      }>(`products${query}`);
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch products.'),
       };
     }
   }

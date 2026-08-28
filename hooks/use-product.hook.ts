@@ -1,19 +1,32 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  UseQueryOptions,
+} from '@tanstack/react-query';
 
 import { CreateProductInput } from '@/schemas/create-product.schema';
-import { AdminProductListQueryParams, ProductService } from '@/services/product.service';
+import {
+  AdminProductListQueryParams,
+  BestSellerListParams,
+  ProductPagination,
+  ProductService,
+  PublicProductListParams,
+} from '@/services/product.service';
 import { UpdateProductInput } from '@/schemas/update-product.schema';
+import { ClothingProductData } from '@/types/shared/product';
 
-const adminProductService = new ProductService();
+const service_product = new ProductService();
 
 // ==========================================
 // Errors & Helpers
 // ==========================================
 
-class AdminProductServiceError extends Error {
+class ServiceError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'AdminProductServiceError';
+    this.name = 'ServiceError';
   }
 }
 
@@ -21,14 +34,25 @@ type ServiceResult<T> = { success: true; data: T } | { success: false; message: 
 
 function unwrapResult<T>(result: ServiceResult<T>): T {
   if (!result.success) {
-    throw new AdminProductServiceError(result.message);
+    throw new ServiceError(result.message);
   }
   return result.data;
 }
+type QueryOptionsOf<TData> = Omit<UseQueryOptions<TData, ServiceError>, 'queryKey' | 'queryFn'>;
 
 // ==========================================
 // Query Keys Factory
 // ==========================================
+
+export const productKeys = {
+  all: ['products'] as const,
+  publicAll: () => [...productKeys.all, 'public'] as const,
+  publicList: (params?: PublicProductListParams) =>
+    [...productKeys.publicAll(), 'list', params ?? {}] as const,
+  bestSellers: (params?: BestSellerListParams) =>
+    [...productKeys.publicAll(), 'best-sellers', params ?? {}] as const,
+  publicDetail: (slug: string) => [...productKeys.publicAll(), 'detail', slug] as const,
+};
 
 export const adminProductKeys = {
   root: ['admin-products'] as const,
@@ -47,10 +71,44 @@ export const adminProductKeys = {
 // Custom React Query Hooks
 // ==========================================
 
+// ======================
+// Public
+//=======================
+export function usePublicProductsQuery(
+  params?: PublicProductListParams,
+  options?: QueryOptionsOf<{ products: ClothingProductData[]; pagination: ProductPagination }>
+) {
+  return useQuery({
+    queryKey: productKeys.publicList(params),
+    queryFn: async () => unwrapResult(await service_product.getProducts(params)),
+    staleTime: 60_000,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
+    ...options,
+  });
+}
+
+export function usePublicProductQuery(slug: string, options?: QueryOptionsOf<ClothingProductData>) {
+  return useQuery({
+    queryKey: productKeys.publicDetail(slug),
+    queryFn: async () => unwrapResult(await service_product.getProductBySlug(slug)),
+    enabled: Boolean(slug),
+    staleTime: 5 * 60_000,
+    gcTime: 15 * 60_000,
+    refetchOnWindowFocus: false,
+    ...options,
+  });
+}
+
+//==================
+// Admin
+//=============
+
 export function useAdminProductDetailQuery(productId: string) {
   return useQuery({
     queryKey: adminProductKeys.detail(productId),
-    queryFn: async () => unwrapResult(await adminProductService.getAdminProductById(productId)),
+    queryFn: async () => unwrapResult(await service_product.getAdminProductById(productId)),
     enabled: Boolean(productId),
     staleTime: 10_000,
     gcTime: 5 * 60_000,
@@ -61,7 +119,7 @@ export function useAdminProductsListQuery(params?: AdminProductListQueryParams) 
   return useQuery({
     queryKey: adminProductKeys.list(params),
     queryFn: async () => {
-      const result = await adminProductService.getAdminProducts(params);
+      const result = await service_product.getAdminProducts(params);
       return unwrapResult(result);
     },
     staleTime: 10_000,
@@ -75,7 +133,7 @@ export function useCreateProduct() {
 
   return useMutation({
     mutationFn: async (data: CreateProductInput) => {
-      const result = await adminProductService.createAdminProduct(data);
+      const result = await service_product.createAdminProduct(data);
       return unwrapResult(result);
     },
     onSuccess: () => {
@@ -89,7 +147,7 @@ export function useUpdateAdminProductMutation() {
 
   return useMutation({
     mutationFn: async ({ productId, data }: { productId: string; data: UpdateProductInput }) =>
-      unwrapResult(await adminProductService.updateAdminProduct(productId, data)),
+      unwrapResult(await service_product.updateAdminProduct(productId, data)),
     onSuccess: (product, variables) => {
       queryClient.setQueryData(adminProductKeys.detail(variables.productId), product);
       queryClient.invalidateQueries({ queryKey: adminProductKeys.root });
