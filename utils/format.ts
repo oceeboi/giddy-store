@@ -1,7 +1,7 @@
 import { CurrencyFormatterBase } from '@/packages/format-currency';
 
 function format_currency(amount: number): string {
-  CurrencyFormatterBase.setDefaultCountry('Nigeria');
+  CurrencyFormatterBase.setDefaultCountry('South Africa');
   return CurrencyFormatterBase.format(amount);
 }
 

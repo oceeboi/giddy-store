@@ -10,7 +10,10 @@ import { ProductColorSelector } from '@/components/comps/products/product-color'
 import { ProductSizeSelector } from '@/components/comps/products/product-size';
 import { Accordion } from '@/components/shared/accordion';
 import { usePublicProductQuery } from '@/hooks/use-product.hook';
+
 import { format_currency } from '@/utils/format';
+import { useCart } from '@/store/cart.hook';
+import { Heart, Minus, Plus, ShoppingBag } from 'lucide-react';
 
 const productCatalogSchema = z.object({
   id: z.string().min(1, 'Product ID is required'),
@@ -24,9 +27,9 @@ export type ProductCatalogFormValues = z.input<typeof productCatalogSchema>;
 interface ProductViewProps {
   slug: string;
 }
-
-export function ProductView({ slug }: ProductViewProps) {
+export function ProductView({ slug }: ProductViewProps): JSX.Element {
   const { data: clothingData, isLoading } = usePublicProductQuery(slug);
+  const { addItem } = useCart();
 
   const { control, handleSubmit, setValue } = useForm<ProductCatalogFormValues>({
     resolver: zodResolver(productCatalogSchema),
@@ -40,8 +43,9 @@ export function ProductView({ slug }: ProductViewProps) {
 
   const selectedColorId = useWatch({ control, name: 'colorId' });
   const selectedSizeId = useWatch({ control, name: 'sizeId' });
+  const selectedQuantity = useWatch({ control, name: 'quantity' }) ?? 1;
 
-  // 1. Sync form values once clothingData is loaded
+  // 1. Sync default values once clothingData loads
   useEffect(() => {
     if (clothingData) {
       setValue('id', clothingData.id);
@@ -49,125 +53,145 @@ export function ProductView({ slug }: ProductViewProps) {
       const defaultColor = clothingData.colors?.[0]?.id ?? '';
       setValue('colorId', defaultColor);
 
-      const availableVariant = clothingData.variants?.find(
-        (v) => v.colorId === defaultColor && v.active && v.availableQuantity > 0
+      const firstAvailableVariant = clothingData.variants?.find(
+        (v) => v.colorId === defaultColor && v.active !== false && (v.availableQuantity ?? 0) > 0
       );
-      setValue('sizeId', availableVariant?.sizeId ?? clothingData.variants?.[0]?.sizeId ?? '');
 
-      // PLACEHOLDER: Trigger Recently Viewed store handler
-      console.log('Record Recently Viewed:', {
-        id: clothingData.id,
-        slug: clothingData.slug,
-        name: clothingData.name,
-        price: clothingData.pricing?.basePrice,
-        image: clothingData.media?.[0]?.url,
-      });
+      const fallbackVariant = clothingData.variants?.find((v) => v.colorId === defaultColor);
+
+      setValue('sizeId', firstAvailableVariant?.sizeId ?? fallbackVariant?.sizeId ?? '');
     }
   }, [clothingData, setValue]);
 
-  // 2. Validate and fallback size when color selection changes
+  // 2. Fallback size selection when color changes
   useEffect(() => {
     if (!clothingData || !selectedColorId) return;
 
     const variantsForColor = clothingData.variants?.filter((v) => v.colorId === selectedColorId);
-    const stillValid = variantsForColor?.some(
-      (v) => v.sizeId === selectedSizeId && v.active && v.availableQuantity > 0
+    const isValid = variantsForColor?.some(
+      (v) => v.sizeId === selectedSizeId && v.active !== false && (v.availableQuantity ?? 0) > 0
     );
 
-    if (!stillValid) {
-      const firstAvailable = variantsForColor?.find((v) => v.active && v.availableQuantity > 0);
-      setValue('sizeId', firstAvailable?.sizeId ?? '', {
+    if (!isValid) {
+      const firstAvailable = variantsForColor?.find(
+        (v) => v.active !== false && (v.availableQuantity ?? 0) > 0
+      );
+      setValue('sizeId', firstAvailable?.sizeId ?? variantsForColor?.[0]?.sizeId ?? '', {
         shouldValidate: true,
-        shouldDirty: true,
       });
     }
   }, [selectedColorId, clothingData, selectedSizeId, setValue]);
 
-  // Derive active variant and pricing dynamic values
+  // Derive active variant, stock, and dynamic pricing
   const activeVariant = useMemo(() => {
     return clothingData?.variants?.find(
       (v) => v.colorId === selectedColorId && v.sizeId === selectedSizeId
     );
   }, [clothingData, selectedColorId, selectedSizeId]);
 
+  const isOutOfStock = useMemo(() => {
+    if (!activeVariant) return true;
+    return activeVariant.availableQuantity <= 0 || activeVariant.active === false;
+  }, [activeVariant]);
+
   const currentPrice = activeVariant?.priceOverride ?? clothingData?.pricing?.basePrice ?? 0;
   const originalPrice = clothingData?.pricing?.compareAtPrice;
 
-  // Placeholder Core Handlers
+  // Handle Add to Cart Submit
   function handleAddToCart(data: ProductCatalogFormValues) {
-    const selectedVariant = clothingData?.variants?.find(
-      (v) => v.colorId === data.colorId && v.sizeId === data.sizeId
-    );
+    if (!clothingData || !activeVariant || isOutOfStock) return;
 
-    console.log('Cart Action Payload:', {
-      productId: data.id,
-      variantId: selectedVariant?.id,
-      colorId: data.colorId,
-      sizeId: data.sizeId,
-      quantity: data.quantity,
+    const selectedColorObj = clothingData.colors?.find((c) => c.id === data.colorId);
+
+    // Primary image lookup: variant-specific image fallback to master product media
+    const itemImage =
+      clothingData.media?.find((m) => m.colorId === data.colorId)?.url ??
+      clothingData.media?.[0]?.url ??
+      '';
+
+    addItem({
+      productId: clothingData.id,
+      variantId: activeVariant.id,
+      size: activeVariant.size, // Matches size label or ID from variant payload
+      sizeId: activeVariant.sizeId,
+      color: selectedColorObj?.name ?? 'Standard',
+      sku: activeVariant.sku ?? `${clothingData.id}-${data.colorId}-${data.sizeId}`,
+      quantity: Number(data.quantity) || 1,
+      title: clothingData.name,
       price: currentPrice,
+      image: itemImage,
+      slug: clothingData.slug, // For navigation to product page
+      colorId: selectedColorObj?.id ?? '', // Store colorId for variant tracking
     });
   }
 
-  function handleAddToWishlist() {
-    console.log('Wishlist Action Payload:', {
-      productId: clothingData?.id,
-      slug: clothingData?.slug,
-      name: clothingData?.name,
-      price: currentPrice,
-    });
+  function handleQuantityChange(delta: number) {
+    const nextQty = Math.max(1, selectedQuantity + delta);
+    if (activeVariant?.availableQuantity && nextQty > activeVariant.availableQuantity) return;
+    setValue('quantity', nextQty, { shouldValidate: true });
   }
 
-  // Loading skeleton layout
   if (isLoading) {
     return (
       <div className="flex flex-col lg:flex-row gap-8 pt-10 px-4 lg:px-12 animate-pulse">
-        <div className="w-full lg:w-1/2 aspect-3/4 bg-neutral-200" />
+        <div className="w-full lg:w-1/2 aspect-3/4 bg-neutral-200 dark:bg-neutral-800" />
         <div className="w-full lg:w-1/2 flex flex-col gap-6 pt-6">
-          <div className="h-8 bg-neutral-200 w-3/4" />
-          <div className="h-6 bg-neutral-200 w-1/4" />
-          <div className="h-32 bg-neutral-200 w-full" />
+          <div className="h-8 bg-neutral-200 dark:bg-neutral-800 w-3/4" />
+          <div className="h-6 bg-neutral-200 dark:bg-neutral-800 w-1/4" />
+          <div className="h-32 bg-neutral-200 dark:bg-neutral-800 w-full" />
         </div>
       </div>
     );
   }
 
   return (
-    <section>
-      <section className="flex pt-10 flex-col lg:flex-row gap-2">
+    <section className="font-archivo">
+      <section className="flex pt-10 flex-col lg:flex-row gap-6 lg:gap-12">
         {/* Product Media Display */}
-        <ProductImage image_data={clothingData?.media ?? []} selectedColorId={selectedColorId} />
-
-        <div className="w-full">
-          <section className="pt-6 pb-12 px-4 lg:pt-15 lg:px-30">
-            {/* Title & Pricing */}
-            <div className="flex flex-col gap-2 mb-6">
-              <h1 className="text-xl font-archivo-black font-normal tracking-tight text-black">
+        <div className="w-full lg:w-1/2">
+          <ProductImage image_data={clothingData?.media ?? []} selectedColorId={selectedColorId} />
+        </div>
+        {/* Product Details & Purchase Controls */}
+        <div className="w-full lg:w-1/2">
+          <section className="pt-2 pb-12 px-4 lg:px-12">
+            {/* Header / Brand & Title */}
+            <div className="flex flex-col gap-1.5 mb-6 border-b border-neutral-200 pb-6 dark:border-neutral-800">
+              {clothingData?.brand?.name && (
+                <span className="text-[11px] font-mono font-semibold uppercase tracking-widest text-neutral-400">
+                  {clothingData.brand.name}
+                </span>
+              )}
+              <h1 className="text-2xl font-bold uppercase tracking-tight text-neutral-900 dark:text-neutral-100">
                 {clothingData?.name}
               </h1>
-              <div className="flex items-center gap-3">
-                <h2>
-                  <span className="text-lg font-archivo font-semibold tracking-tight text-black">
+
+              {/* Price & Inventory Indicator */}
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex items-baseline gap-3">
+                  <span className="text-xl font-bold text-black dark:text-white">
                     {format_currency(currentPrice)}
                   </span>
-                </h2>
-                {originalPrice && originalPrice > currentPrice && (
-                  <h2>
-                    <span className="text-base line-through text-neutral-500 font-archivo font-normal tracking-tight">
+                  {originalPrice && originalPrice > currentPrice && (
+                    <span className="text-sm line-through text-neutral-400">
                       {format_currency(originalPrice)}
                     </span>
-                  </h2>
-                )}
+                  )}
+                </div>
+
+                {/* Stock Status Badge */}
               </div>
             </div>
 
             {/* Selection Form */}
-            <form className="flex flex-col gap-4" onSubmit={handleSubmit(handleAddToCart)}>
+            <form className="flex flex-col gap-6" onSubmit={handleSubmit(handleAddToCart)}>
+              {/* Color Selector */}
               <ProductColorSelector
                 control={control}
                 name="colorId"
                 colors={clothingData?.colors ?? []}
               />
+
+              {/* Size Selector */}
               <ProductSizeSelector
                 control={control}
                 name="sizeId"
@@ -175,33 +199,64 @@ export function ProductView({ slug }: ProductViewProps) {
                 selectedColorId={selectedColorId}
               />
 
-              <button type="button" className="flex flex-col gap-1 items-start">
-                <p className="text-sm text-neutral-500 font-archivo capitalize hover:underline">
-                  Size & Fit Guide
-                </p>
-              </button>
+              {/* Quantity Selector Block */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                  Quantity
+                </span>
+                <div className="inline-flex h-11 w-36 items-center border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+                  <button
+                    type="button"
+                    onClick={() => handleQuantityChange(-1)}
+                    disabled={selectedQuantity <= 1 || isOutOfStock}
+                    className="flex h-full w-10 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-30 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="flex h-full flex-1 items-center justify-center border-x border-neutral-200 font-mono text-sm font-bold text-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
+                    {selectedQuantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleQuantityChange(1)}
+                    disabled={
+                      isOutOfStock ||
+                      (activeVariant?.availableQuantity !== undefined &&
+                        selectedQuantity >= activeVariant.availableQuantity)
+                    }
+                    className="flex h-full w-10 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-30 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                    aria-label="Increase quantity"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
 
-              <div className="flex flex-col gap-3 mt-6">
+              {/* Action CTA Buttons */}
+              <div className="flex flex-col gap-3 pt-4">
                 <button
                   type="submit"
-                  className="w-full bg-black uppercase text-white py-3 px-4 rounded-none text-base font-archivo font-medium tracking-tight transition-all duration-200 ease-in-out hover:bg-neutral-900 focus-visible:outline focus-visible:outline-black focus-visible:outline-offset-2"
+                  disabled={isOutOfStock}
+                  className="group flex w-full items-center justify-center gap-2 rounded-none bg-black py-4 px-6 text-sm font-semibold uppercase tracking-wider text-white transition-all hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300 dark:bg-white dark:text-black dark:hover:bg-neutral-200 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-500"
                 >
-                  Add to Cart
+                  <ShoppingBag className="h-4 w-4" />
+                  <span>{isOutOfStock ? 'Sold Out' : 'Add to Cart'}</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleAddToWishlist}
-                  className="w-full border-[0.5px] uppercase border-black bg-white text-black py-3 px-4 rounded-none text-base font-archivo font-medium tracking-tight transition-all duration-200 ease-in-out hover:bg-neutral-900/10 focus-visible:outline focus-visible:outline-black focus-visible:outline-offset-2"
+                  className="flex w-full items-center justify-center gap-2 rounded-none border border-black bg-transparent py-3.5 px-6 text-sm font-semibold uppercase tracking-wider text-black transition-colors hover:bg-neutral-100 dark:border-white dark:text-white dark:hover:bg-neutral-900"
                 >
-                  Add to Wishlist
+                  <Heart className="h-4 w-4" />
+                  <span>Add to Wishlist</span>
                 </button>
               </div>
             </form>
           </section>
 
           {/* Collapsible Details */}
-          <section className="lg:px-28.5">
+          <section className="px-4 lg:px-12 border-neutral-200 dark:border-neutral-800 pt-6">
             <Accordion>
               <Accordion.Item value="product-details">
                 <Accordion.Trigger
