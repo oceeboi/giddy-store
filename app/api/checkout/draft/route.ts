@@ -1,62 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 import connectToDatabase from '@/lib/db';
 import { CheckoutDraft } from '@/models/CheckoutDraft';
 import { createCheckoutDraftSchema } from '@/schemas/checkout.schema';
-import { RateLimiter, withLoginIdentifier, applyRateLimit } from '@/packages/rate-limiter';
 
 // ---------------------------------------------------------------------------
-// Rate Limiter Configuration
+// Upstash Rate Limiter Configuration (Single Lua Round-Trip)
 // ---------------------------------------------------------------------------
-// Stricter limit for checkout draft generation: 5 drafts per 15 minutes per IP/Identifier
-const checkoutDraftLimiter = new RateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 5,
-  keyPrefix: 'rl:checkout_draft',
-  getKey: (request, clientId) => {
-    const url = new URL(request.url);
-    const identifier = url.searchParams.get('__identifier') ?? 'guest';
-    return `draft:${clientId}:${identifier}`;
-  },
-  lockout: {
-    maxFailures: 10,
-    failWindowMs: 15 * 60 * 1000,
-    baseLockoutMs: 30 * 60 * 1000, // 30 minutes initial lockout
-    lockoutCapMs: 24 * 60 * 60 * 1000, // Max 24 hours
-  },
+const checkoutDraftLimiter = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(5, '15 m'),
+  prefix: 'rl:checkout_draft',
+  analytics: true,
 });
 
-interface CartItemPricing {
-  unitPrice: number;
-  quantity: number;
-}
-
-// Server-calculated pricing summary
-function calculatePricingSummary(
-  items: CartItemPricing[],
-  shippingCost: number = 0,
-  taxRate: number = 0.08,
-  currency: string = 'USD'
-) {
-  const subtotal = items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-  const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
-  const totalAmount = subtotal + shippingCost + taxAmount;
-
-  return {
-    subtotal,
-    discountTotal: 0,
-    shippingCost,
-    taxAmount,
-    totalAmount,
-    currency,
-  };
+function getClientIp(request: NextRequest): string {
+  const xff = request.headers.get('x-forwarded-for');
+  if (xff) return xff.split(',')[0].trim();
+  return request.headers.get('cf-connecting-ip') ?? request.headers.get('x-real-ip') ?? '127.0.0.1';
 }
 
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.json();
 
-    // 1. Zod Validation
+    // 1. Fast Schema Validation
     const validationResult = createCheckoutDraftSchema.safeParse(rawBody);
 
     if (!validationResult.success) {
@@ -82,33 +52,74 @@ export async function POST(request: NextRequest) {
       isAdvisorGenerated = false,
     } = body;
 
-    // 2. Upstash Redis Rate Limiting (Keyed by IP + Identifier)
-    const clientIdentifier = customer.userId || customer.guestEmail || 'anonymous_guest';
-    const keyedRequest = withLoginIdentifier(request, clientIdentifier);
+    // 2. Parallel Execution (Atomic Lua Rate-Limit + MongoDB Warmup)
+    const clientIdentifier = customer?.userId || customer?.guestEmail || getClientIp(request);
+    const rateLimitKey = `draft:${clientIdentifier}`;
 
-    const rateLimitResponse = await applyRateLimit(
-      keyedRequest,
-      checkoutDraftLimiter,
-      'Too many checkout creation attempts. Please wait a few minutes before trying again.'
-    );
+    const [rateLimitResult] = await Promise.all([
+      checkoutDraftLimiter.limit(rateLimitKey),
+      connectToDatabase(),
+    ]);
 
-    if (rateLimitResponse) {
-      return rateLimitResponse;
+    if (!rateLimitResult.success) {
+      const resetInSeconds = Math.ceil((rateLimitResult.reset - Date.now()) / 1000);
+      return NextResponse.json(
+        {
+          error:
+            'Too many checkout creation attempts. Please wait a few minutes before trying again.',
+        },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': String(rateLimitResult.limit),
+            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+            'X-RateLimit-Reset': String(rateLimitResult.reset),
+            'Retry-After': String(resetInSeconds > 0 ? resetInSeconds : 1),
+          },
+        }
+      );
     }
 
-    await connectToDatabase();
-
-    // 3. Compute Server-Side Pricing
-    const shippingCost = shippingMethod?.cost ?? 0;
-    const pricing = calculatePricingSummary(cartItems, shippingCost);
-
-    // 4. Determine Inventory Reservation Rule
-    // Reserve stock only for Authenticated users or Sales Advisor concierge links
-    const isEligibleForHold = Boolean(customer.userId || isAdvisorGenerated);
-    const holdDurationMinutes = isAdvisorGenerated ? 120 : 15; // 2 hrs for advisor, 15 mins for users
+    // 3. Single-Pass Computation for Pricing & Cart Formatting
+    const isEligibleForHold = Boolean(customer?.userId || isAdvisorGenerated);
+    const holdDurationMinutes = isAdvisorGenerated ? 120 : 15;
+    const nowMs = Date.now();
     const reservedUntil = isEligibleForHold
-      ? new Date(Date.now() + holdDurationMinutes * 60 * 1000)
+      ? new Date(nowMs + holdDurationMinutes * 60 * 1000)
       : undefined;
+
+    const shippingCost = shippingMethod?.cost ?? 0;
+    let subtotal = 0;
+
+    const formattedCartItems = new Array(cartItems.length);
+
+    for (let i = 0; i < cartItems.length; i++) {
+      const item = cartItems[i];
+      subtotal += item.unitPrice * item.quantity;
+
+      formattedCartItems[i] = {
+        productId: item.productId,
+        variantId: item.variantId,
+        sku: item.sku,
+        title: item.title,
+        size: item.size,
+        color: item.color,
+        price: item.unitPrice,
+        quantity: item.quantity,
+        image: item.image,
+        isReserved: isEligibleForHold,
+      };
+    }
+
+    const taxAmount = Math.round(subtotal * 0.08 * 100) / 100;
+    const pricing = {
+      subtotal,
+      discountTotal: 0,
+      shippingCost,
+      taxAmount,
+      totalAmount: subtotal + shippingCost + taxAmount,
+      currency: 'USD',
+    };
 
     const reservation = {
       isReserved: isEligibleForHold,
@@ -116,12 +127,7 @@ export async function POST(request: NextRequest) {
       ...(reservedUntil && { reservedUntil }),
     };
 
-    const formattedCartItems = cartItems.map((item) => ({
-      ...item,
-      isReserved: isEligibleForHold,
-    }));
-
-    // 5. UPDATE EXISTING DRAFT (if checkoutToken supplied)
+    // 4. Update Existing Draft or Create New Draft
     if (checkoutToken) {
       const updatedDraft = await CheckoutDraft.findOneAndUpdate(
         { checkoutToken },
@@ -136,21 +142,18 @@ export async function POST(request: NextRequest) {
             ...(shippingMethod && { shippingMethod }),
             ...(giftOptions && { giftOptions }),
             ...(clientNotes && { clientNotes }),
-            expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Reset TTL
+            expiresAt: new Date(nowMs + 14 * 24 * 60 * 60 * 1000),
           },
         },
-        { new: true, runValidators: true }
+        { new: true, runValidators: true, lean: true }
       );
 
       if (!updatedDraft) {
-        await checkoutDraftLimiter.recordFailure(keyedRequest);
         return NextResponse.json(
           { error: 'Checkout session not found or expired.' },
           { status: 404 }
         );
       }
-
-      await checkoutDraftLimiter.recordSuccess(keyedRequest);
 
       return NextResponse.json(
         {
@@ -163,20 +166,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6. CREATE NEW DRAFT
-    const newDraft = await CheckoutDraft.create({
-      userId: customer.userId,
-      guestEmail: customer.guestEmail,
+    // 5. Create Full New Draft Document
+    const newDraftData = {
+      ...(checkoutToken && { checkoutToken }),
+      userId: customer?.userId,
+      guestEmail: customer?.guestEmail,
       cartItems: formattedCartItems,
-      shippingAddress,
-      billingAddress,
-      shippingMethod,
-      giftOptions,
-      clientNotes,
-      status: 'DRAFT',
-    });
+      pricing,
+      reservation,
+      ...(shippingAddress && { shippingAddress }),
+      ...(billingAddress && { billingAddress }),
+      ...(shippingMethod && { shippingMethod }),
+      ...(giftOptions && { giftOptions }),
+      ...(clientNotes && { clientNotes }),
+      expiresAt: new Date(nowMs + 14 * 24 * 60 * 60 * 1000),
+    };
 
-    await checkoutDraftLimiter.recordSuccess(keyedRequest);
+    const newDraftDocument = await CheckoutDraft.create(newDraftData);
+
+    const newDraft = newDraftDocument.toObject();
 
     return NextResponse.json(
       {

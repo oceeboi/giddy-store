@@ -1,19 +1,32 @@
 'use client';
+
 import { Sheet } from '@/components/shared/sheet';
 import { format_currency } from '@/utils/format';
-import { Minus, Plus, ShoppingCartIcon, Trash2 } from 'lucide-react';
+import { Minus, Plus, ShoppingCartIcon } from 'lucide-react';
 import Link from 'next/link';
-import { Dispatch, SetStateAction, useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { useCart } from '@/store/cart.hook';
 import { CartItem } from '@/types/cart.type';
 import Image from 'next/image';
 import { usePublicProductQuery } from '@/hooks/use-product.hook';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useCreateCheckoutDraft } from '@/hooks/use-checkout.hook';
+import { useSubscribe } from '@/store/subscribe.hook';
+import { useToken } from '@/store/token.hook';
+import { usePathname, useRouter } from 'next/navigation';
+
 export function CartComponent() {
+  const { email } = useSubscribe();
+  const { addToken } = useToken();
+  const { mutate: createCheckoutDraft } = useCreateCheckoutDraft();
   const [isOpen, setIsOpen] = useState(false);
   const [alert, setAlert] = useState<{ message: string } | null>(null);
+
+  const pathname = usePathname();
+  const router = useRouter();
+  const isActive = pathname.startsWith('/checkout') || pathname.startsWith('/cart');
+
   const {
-    addItem,
     removeItem,
     updateQuantity,
     updateSize,
@@ -21,35 +34,65 @@ export function CartComponent() {
     totalItems: itemCartCount,
     rawSubtotal: subtotal,
   } = useCart();
-  // Function to handle closing the alert after a certain time
-  const handleAlertClose = () => {
-    setTimeout(() => {
-      setAlert(null);
-    }, 2000); // Close after 2 seconds
-  };
 
-  // Call the alert close function whenever an alert is set
-  if (alert) {
-    handleAlertClose();
-  }
+  // Auto-dismiss alert cleanly via useEffect
+  useEffect(() => {
+    if (alert) {
+      const timer = setTimeout(() => {
+        setAlert(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [alert]);
 
   function Checkout() {
-    // Implement checkout logic here
+    createCheckoutDraft(
+      {
+        customer: {
+          guestEmail: email || 'anonymous@example.com',
+        },
+        cartItems: items.map((item) => ({
+          productId: item.productId,
+          variantId: item.variantId,
+          size: item.size,
+          color: item.color,
+          sku: item.sku,
+          title: item.title,
+          quantity: item.quantity,
+          image: item.image,
+          unitPrice: item.price,
+        })),
+      },
+      {
+        onSuccess: (data) => {
+          addToken(data.checkoutToken);
+          window.location.href = data.shareableUrl;
+        },
+      }
+    );
   }
+
+  const handleTriggerClick = (e: React.MouseEvent) => {
+    if (isActive) {
+      e.preventDefault();
+      router.push('/cart');
+    }
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <Sheet.Trigger asChild>
         <button
           type="button"
+          onClick={handleTriggerClick}
           aria-label={itemCartCount > 0 ? `Cart, ${itemCartCount} items` : 'Cart'}
-          className="relative inline-flex size-9 items-center justify-center border border-neutral-900 bg-black text-white transition-all duration-200 ease-in-out hover:opacity-60 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4"
+          className="relative inline-flex size-9 items-center justify-center border border-black bg-black text-white transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-black focus-visible:outline-offset-2"
         >
           <ShoppingCartIcon className="size-4" />
           {itemCartCount > 0 && (
             <span
               aria-hidden="true"
-              className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center border border-neutral-900 bg-white px-1 text-[9px] font-black leading-none text-black"
+              className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center border border-black bg-white px-1 font-archivo text-[9px] font-medium leading-none text-black"
             >
               {itemCartCount > 99 ? '99+' : itemCartCount}
             </span>
@@ -60,39 +103,42 @@ export function CartComponent() {
       <Sheet.Content
         side="right"
         size="md"
-        className="h-full w-full font-archivo border-l border-neutral-900 bg-white text-black shadow-none"
+        className="flex h-full w-full flex-col bg-white font-archivo text-black shadow-none"
       >
-        <Sheet.Header className="border-b border-neutral-900 px-6 pb-4 pt-6">
-          <Sheet.Title className="font-archivo text-lg text-black! font-black uppercase tracking-widest">
+        {/* Header */}
+        <Sheet.Header className="border-b border-neutral-200 px-6 py-5">
+          <Sheet.Title className="m-0 font-archivo text-base font-normal uppercase tracking-wider text-black">
             <div className="flex items-center justify-between">
-              <h1 className="text-lg font-black uppercase tracking-widest text-black">Your Cart</h1>
-              <span className="text-[10px] uppercase tracking-widest text-neutral-950">
-                {itemCartCount} item{itemCartCount !== 1 ? 's' : ''}
+              <span className="text-black">Your Cart</span>
+              <span className="font-archivo text-xs font-light text-neutral-500">
+                ({itemCartCount} {itemCartCount === 1 ? 'ITEM' : 'ITEMS'})
               </span>
             </div>
           </Sheet.Title>
         </Sheet.Header>
+
+        {/* Dynamic Alerts */}
         <AnimatePresence mode="wait">
           {alert && (
             <motion.div
-              className="bg-red-100 border border-red-400 text-red-900 px-4 py-3 rounded-none relative m-4"
+              className="border-b border-neutral-200 bg-neutral-100 px-6 py-3 font-archivo text-xs font-normal text-neutral-900"
               role="alert"
-
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              exit={{ opacity: 0, y: -10 }}
             >
-              <span className="block sm:inline text-[11px]">{alert.message}</span>
+              <span className="block">{alert.message}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
+        {/* Cart Item List */}
         <div
-          className="flex flex-1 flex-col overflow-y-auto  px-6 py-6"
+          className="flex-1 overflow-y-auto px-6 py-2 font-archivo"
           style={{ scrollbarWidth: 'thin' }}
         >
           {items.length > 0 ? (
-            <div className="flex flex-col gap-4">
+            <div className="divide-y divide-neutral-100">
               {items.map((item) => (
                 <CartItemRow
                   key={item.cartItemId}
@@ -106,46 +152,43 @@ export function CartComponent() {
               ))}
             </div>
           ) : (
-            <div className="border border-neutral-900 bg--950 p-5">
-              <p className="text-[10px] uppercase tracking-widest text-neutral-900">Cart Status</p>
-              <h3 className="mt-3 font-archivo text-sm font-bold uppercase tracking-wider text-black">
+            <div className="flex h-full flex-col justify-center py-12 text-center font-archivo">
+              <p className="text-xs font-normal uppercase tracking-widest text-neutral-400">
                 Your Cart Is Empty
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-800">
-                Add products to begin checkout. Curated pieces you select will appear here.
+              </p>
+              <p className="mt-2 text-sm font-light text-neutral-600">
+                Add items to begin checkout.
               </p>
             </div>
           )}
         </div>
 
-        <Sheet.Footer className="flex-col border-t border-neutral-900 px-6 py-4">
-          <div className="mb-4 flex w-full flex-col gap-2">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-neutral-500">
-              <span>Subtotal</span>
-              <span className="text-black">{format_currency(subtotal!)}</span>
-            </div>
+        {/* Footer & Actions */}
+        <Sheet.Footer className="flex-col border-t border-neutral-200 px-6 py-5 font-archivo">
+          <div className="mb-5 flex w-full items-center justify-between">
+            <span className="text-xs font-normal uppercase tracking-widest text-neutral-500">
+              Subtotal
+            </span>
+            <span className="font-archivo text-base font-normal tracking-tight text-black">
+              {format_currency(subtotal!)}
+            </span>
           </div>
-          <div className="flex w-full flex-col gap-3">
-            {/* <Link
-              href="/cart"
-              className="inline-flex w-full items-center justify-center border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-wider text-black transition-all duration-200 ease-in-out hover:opacity-60 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4"
-            >
-              View Cart
-            </Link> */}
+
+          <div className="flex w-full flex-col gap-2.5">
             <button
-              className="inline-flex w-full items-center justify-center border border-black bg-black px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-white transition-all duration-200 ease-in-out hover:text-neutral-400 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4"
+              className="inline-flex w-full items-center justify-center border border-black bg-black py-3.5 font-archivo text-xs font-medium uppercase tracking-wider text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-black"
               onClick={Checkout}
             >
               Checkout
             </button>
 
-            <button
-              type="button"
+            <Link
+              href="/cart"
               onClick={() => setIsOpen(false)}
-              className="inline-flex w-full items-center justify-center border border-black bg-black px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-white transition-all duration-200 ease-in-out hover:text-neutral-400 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4"
+              className="inline-flex w-full items-center justify-center border border-neutral-200 bg-white py-3 font-archivo text-xs font-medium uppercase tracking-wider text-black transition-colors hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-black"
             >
-              Continue Shopping
-            </button>
+              View Cart
+            </Link>
           </div>
         </Sheet.Footer>
       </Sheet.Content>
@@ -178,6 +221,7 @@ function CartItemRow({
 }: CartItemProps) {
   const lineTotal = item.price * item.quantity;
   const [isOpen, setIsOpen] = useState<boolean>(false);
+
   function onToggle() {
     setIsOpen(!isOpen);
   }
@@ -196,14 +240,12 @@ function CartItemRow({
         ?.availableQuantity || 1,
       availableVariantsForColor.find((variant) => variant.sizeId === newSizeId)?.id || '1'
     );
-    setIsOpen(false); // Close the size selection dropdown after selection
+    setIsOpen(false);
   }
 
   function handleUpdateQuantity(newQuantity: number) {
-    // check if thee quantity of the perticular item has up to such variant quantity in the stock before updating the quantity in the cart
     const variant = availableVariantsForColor.find((variant) => variant.sizeId === item.sizeId);
     if (variant && newQuantity > variant.availableQuantity) {
-      // alert(`Only ${variant.availableQuantity} items available in stock for this size.`);
       setAlert({
         message: `Only ${variant.availableQuantity} items available in stock for this size.`,
       });
@@ -221,129 +263,131 @@ function CartItemRow({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-4">
-        <span className="text-sm text-neutral-500">Loading...</span>
+      <div className="flex items-center justify-center py-6 font-archivo">
+        <span className="text-xs font-light text-neutral-400 uppercase tracking-widest">
+          LOADING...
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="group relative flex w-full flex-col gap-3  bg-white p-4 transition-colors hover:border-black dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-100 font-archivo">
-      {/* Top Header: Image, Title, Metadata & Trash Action */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0">
-          {/* Thumbnail Container */}
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-none   bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900">
-            {item.image ? (
-              <Image src={item.image} alt={item.title} fill className="object-cover" sizes="56px" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center font-archivo text-[10px] uppercase text-neutral-400">
-                No Img
-              </div>
-            )}
+    <div className="flex w-full gap-4 py-5 font-archivo">
+      {/* Product Image */}
+      <div className="relative h-24 w-20 shrink-0 bg-neutral-100">
+        {item.image ? (
+          <Image
+            src={item.image}
+            alt={item.title}
+            fill
+            sizes="80px"
+            className="object-cover object-center"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center font-archivo text-[10px] font-light uppercase text-neutral-400">
+            No Image
           </div>
+        )}
+      </div>
 
-          {/* Product Title & Identifiers */}
-          <div className="flex flex-col gap-1 min-w-0">
+      {/* Details & Controls */}
+      <div className="flex flex-1 flex-col justify-between min-w-0">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-start justify-between gap-2">
             <Link
               href={`/collections/${item.slug}`}
               onClick={() => setOpen(false)}
-              className="min-w-0"
+              className="truncate"
             >
-              <span className="font-archivo text-sm font-semibold uppercase tracking-tight text-neutral-900 truncate dark:text-neutral-100">
+              <h4 className="truncate font-archivo text-xs font-medium uppercase tracking-tight text-black hover:opacity-70">
                 {item.title}
-              </span>
+              </h4>
             </Link>
-            <div className="font-mono flex  text-xs font-semibold uppercase text-[#ADA5A5] dark:text-neutral-200">
-              <span className="text-[#ADA5A5] mr-0.5 font-normal">{item.color}</span> {item.size}{' '}
-              <div
-                onClick={onToggle}
-                className="text-[#0a0908] ml-2 font-archivo font-light underline cursor-pointer"
-              >
-                Change
-              </div>
-            </div>
 
-            <AnimatePresence mode="wait">
-              {isOpen && (
-                <div className="grid grid-cols-5 p-[0.5px] gap-[0.5px]">
-                  {availableVariantsForColor.map((variant: any, i: number) => {
-                    const outOfStock = variant.availableQuantity <= 0 || !variant.active;
-                    return (
-                      <motion.button
-                        key={variant.id}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{ duration: 0.2, delay: i * 0.05 }}
-                        type="button"
-                        disabled={outOfStock}
-                        onClick={() => handleSizeChange(variant.size, variant.sizeId)}
-                        aria-label={`Add size ${variant.size} to cart`}
-                        className={`bg-white hover:bg-black border-[0.2px] text-black  hover:text-white p-2 flex items-center justify-center transition-colors duration-150 ${
-                          outOfStock
-                            ? 'opacity-40 cursor-not-allowed line-through'
-                            : 'cursor-pointer'
-                        }`}
-                      >
-                        <p className="text-[10px] font-archivo">{variant.size}</p>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              )}
-            </AnimatePresence>
-
-            <span className="text-xs text-neutral-700 dark:text-neutral-300">
-              {format_currency(item.price)}
+            <span className="shrink-0 font-archivo text-xs font-normal tracking-tight text-black">
+              {format_currency(lineTotal)}
             </span>
           </div>
+
+          <div className="flex items-center text-xs text-neutral-500 font-archivo">
+            <span className="uppercase font-light">{item.color}</span>
+            <span className="mx-1.5 font-light">/</span>
+            <span className="uppercase font-medium text-black">{item.size}</span>
+            <button
+              type="button"
+              onClick={onToggle}
+              className="ml-2.5 font-archivo text-[11px] font-light underline text-neutral-800 transition-opacity hover:opacity-60"
+            >
+              Change
+            </button>
+          </div>
+
+          {/* Size Selector Drawer */}
+          <AnimatePresence mode="wait">
+            {isOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-2 grid grid-cols-5 gap-1 pt-1 font-archivo"
+              >
+                {availableVariantsForColor.map((variant: any) => {
+                  const outOfStock = variant.availableQuantity <= 0 || !variant.active;
+                  return (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      disabled={outOfStock}
+                      onClick={() => handleSizeChange(variant.size, variant.sizeId)}
+                      className={`flex items-center justify-center border py-1 font-archivo text-[10px] font-normal uppercase transition-colors ${
+                        outOfStock
+                          ? 'border-neutral-100 bg-neutral-50 text-neutral-300 line-through'
+                          : 'border-neutral-200 bg-white text-black hover:border-black hover:bg-black hover:text-white'
+                      }`}
+                    >
+                      {variant.size}
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Remove Button */}
-        <button
-          type="button"
-          onClick={() => removeItem(item.cartItemId)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-none border border-transparent text-neutral-400 transition-colors hover:border-neutral-200 hover:bg-neutral-100 hover:text-red-600 dark:hover:border-neutral-800 dark:hover:bg-neutral-900 dark:hover:text-red-400"
-          aria-label="Remove item"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Quantity Controls & Line Total */}
-      <div className="flex items-center justify-between border-t border-neutral-100 pt-3 dark:border-neutral-900">
-        {/* Counter Button Block */}
-        <div className="flex flex-col gap-1">
-          <div className="inline-flex items-center border border-neutral-200 dark:border-neutral-800">
+        {/* Quantity Controls & Remove Action */}
+        <div className="mt-3 flex items-center justify-between font-archivo">
+          <div className="inline-flex items-center border border-neutral-200">
             <button
               type="button"
               onClick={() => handleUpdateQuantity(Math.max(1, item.quantity - 1))}
               disabled={item.quantity <= 1}
-              className="flex h-7 w-7 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-30 dark:text-neutral-300 dark:hover:bg-neutral-900"
+              className="flex h-6 w-6 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-30"
               aria-label="Decrease quantity"
             >
-              <Minus className="h-3 w-3" />
+              <Minus className="h-2.5 w-2.5" />
             </button>
-            <span className="flex h-7 min-w-8 items-center justify-center px-2 font-mono text-xs font-bold text-neutral-900 dark:text-neutral-100 border-x border-neutral-200 dark:border-neutral-800">
+
+            <span className="flex h-6 min-w-7 items-center justify-center px-1 font-archivo text-xs font-normal text-black border-x border-neutral-200">
               {item.quantity}
             </span>
+
             <button
               type="button"
               onClick={() => handleUpdateQuantity(item.quantity + 1)}
-              className="flex h-7 w-7 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
+              className="flex h-6 w-6 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100"
               aria-label="Increase quantity"
             >
-              <Plus className="h-3 w-3" />
+              <Plus className="h-2.5 w-2.5" />
             </button>
           </div>
-        </div>
 
-        {/* Total Price */}
-        <div className="flex flex-col items-end">
-          <span className="text-sm font-bold text-black dark:text-white">
-            {format_currency(lineTotal)}
-          </span>
+          <button
+            type="button"
+            className="font-archivo text-[11px] font-light uppercase tracking-wider text-neutral-400 hover:text-black transition-colors"
+            onClick={() => removeItem(item.cartItemId)}
+          >
+            Remove
+          </button>
         </div>
       </div>
     </div>

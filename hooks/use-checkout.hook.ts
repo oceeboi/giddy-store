@@ -55,6 +55,7 @@ export function useCreateCheckoutDraft() {
 
   return useMutation<CreateCheckoutDraftPayload, ServiceError, CreateCheckoutDraftInput>({
     mutationFn: async (input: CreateCheckoutDraftInput) => {
+      console.log('Creating checkout draft with input:', input);
       const result = await checkoutService.createCheckoutDraft(input);
       return unwrapResult(result);
     },

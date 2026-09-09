@@ -1,5 +1,6 @@
 import http from '@/lib/ky';
 import { createCheckoutDraftSchema } from '@/schemas/checkout.schema';
+import { CheckoutDraftType, SterilizedCheckoutDraft } from '@/types/checkout-draft.type';
 import { HTTPError } from 'ky';
 import { z } from 'zod';
 
@@ -13,6 +14,7 @@ const DEFAULT_HTTP_ERROR_MESSAGES: Partial<Record<number, string>> = {
   403: 'You do not have permission to perform this action.',
   404: 'The requested resource was not found.',
   409: 'This resource already exists or is still in use.',
+  410: 'The checkout session has expired.',
   422: 'Invalid input. Please check your data and try again.',
   423: 'Access temporarily locked. Please try again later.',
   429: 'Too many requests. Please wait a moment and try again.',
@@ -25,83 +27,12 @@ const DEFAULT_HTTP_ERROR_MESSAGES: Partial<Record<number, string>> = {
 export type CheckoutDraftResponse = {
   checkoutToken: string;
   shareableUrl: string;
-  draft: {
-    _id?: string;
-    checkoutToken: string;
-    status: 'DRAFT' | 'PROCESSING' | 'COMPLETED' | 'EXPIRED' | 'ABANDONED';
-    customer: {
-      userId?: string;
-      guestEmail?: string;
-      isVIP: boolean;
-    };
-    cartItems: Array<{
-      productId: string;
-      variantId: string;
-      sku: string;
-      title: string;
-      size?: string;
-      color?: string;
-      unitPrice: number;
-      quantity: number;
-      image: string;
-      isReserved: boolean;
-    }>;
-    shippingAddress?: {
-      firstName: string;
-      lastName: string;
-      company?: string;
-      email: string;
-      phone: string;
-      streetAddress: string;
-      apartment?: string;
-      city: string;
-      state: string;
-      postalCode: string;
-      country: string;
-    };
-    billingAddress?: {
-      firstName: string;
-      lastName: string;
-      company?: string;
-      email: string;
-      phone: string;
-      streetAddress: string;
-      apartment?: string;
-      city: string;
-      state: string;
-      postalCode: string;
-      country: string;
-    };
-    shippingMethod?: {
-      id: string;
-      name: string;
-      carrier?: string;
-      cost: number;
-      estimatedDays?: string;
-    };
-    pricing: {
-      subtotal: number;
-      discountTotal: number;
-      shippingCost: number;
-      taxAmount: number;
-      totalAmount: number;
-      currency: string;
-    };
-    giftOptions?: {
-      isGift: boolean;
-      giftMessage?: string;
-      complimentaryWrapping: boolean;
-      hidePricingOnReceipt: boolean;
-    };
-    reservation?: {
-      isReserved: boolean;
-      holdDurationMinutes: number;
-      reservedUntil?: string;
-    };
-    clientNotes?: string;
-    createdAt?: string;
-    updatedAt?: string;
-  };
+  draft: SterilizedCheckoutDraft;
+};
+
+export type GetCheckoutDraftResponse = {
+  success: boolean;
+  draft: SterilizedCheckoutDraft;
 };
 
 export type CreateCheckoutDraftInput = z.input<typeof createCheckoutDraftSchema>;
@@ -144,6 +75,16 @@ export class CheckoutService {
     const status = error.response?.status;
     return statusOverrides[status] ?? DEFAULT_HTTP_ERROR_MESSAGES[status] ?? fallback;
   }
+  private async get<T>(
+    path: string,
+    searchParams?: Record<string, string | number | boolean>
+  ): Promise<T> {
+    const response = await http.get(path, {
+      timeout: REQUEST_TIMEOUT_MS,
+      ...(searchParams && { searchParams }),
+    });
+    return response.json() as Promise<T>;
+  }
 
   private async post<T>(path: string, body?: unknown): Promise<T> {
     const response = await http.post(path, {
@@ -153,9 +94,7 @@ export class CheckoutService {
     return response.json() as Promise<T>;
   }
 
-  async createCheckoutDraft(
-    data: CreateCheckoutDraftInput
-  ): Promise<
+  async createCheckoutDraft(data: CreateCheckoutDraftInput): Promise<
     ServiceResult<{
       checkoutToken: string;
       shareableUrl: string;
@@ -163,7 +102,10 @@ export class CheckoutService {
     }>
   > {
     const validation = CheckoutService.validate(createCheckoutDraftSchema, data);
-    if (!validation.success) return validation;
+    if (!validation.success) {
+      console.error('Validation failed for createCheckoutDraft:', validation.message);
+      return { success: false, message: validation.message };
+    }
 
     try {
       const response = await this.post<{ success: boolean } & CheckoutDraftResponse>(
@@ -186,6 +128,46 @@ export class CheckoutService {
         {
           409: 'A checkout session with this token already exists.',
           423: 'Too many failed attempts. Account temporarily locked.',
+        }
+      );
+
+      return { success: false, message };
+    }
+  }
+
+  /**
+   * Fetch a sterilized checkout draft by token.
+   */
+  async getCheckoutDraft(token: string): Promise<
+    ServiceResult<{
+      success: boolean;
+      draft: SterilizedCheckoutDraft;
+    }>
+  > {
+    if (!token || token.trim() === '') {
+      return {
+        success: false,
+        message: 'Checkout token is required.',
+      };
+    }
+
+    try {
+      const response = await this.get<GetCheckoutDraftResponse>('/checkout/draft', { token });
+
+      return {
+        success: true,
+        data: {
+          success: response.success,
+          draft: response.draft,
+        },
+      };
+    } catch (error) {
+      const message = await CheckoutService.fromHttpError(
+        error,
+        'Failed to retrieve checkout session.',
+        {
+          404: 'Checkout session not found or has expired.',
+          410: 'This checkout session has expired. Please start a new checkout.',
         }
       );
 

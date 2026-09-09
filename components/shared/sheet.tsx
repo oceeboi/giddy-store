@@ -370,7 +370,7 @@ function SheetContent({
             exit="hidden"
             variants={panelVariants}
             transition={{ duration: ANIMATION_SECONDS, ease: [0.32, 0.72, 0, 1] }}
-            className={`absolute flex flex-col border border-neutral-900 bg-black text-white shadow-none outline-none ${className}`}
+            className={`absolute flex flex-col  bg-black text-white shadow-none outline-none ${className}`}
             style={{
               ...SIDE_POSITION[side],
               width: isHorizontal ? SIZE_WIDTH[size] : undefined,

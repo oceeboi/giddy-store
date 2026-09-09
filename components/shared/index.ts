@@ -5,3 +5,4 @@ export * from './filter-sheet';
 export * from './sort-modal';
 export * from './filter-desktop';
 export * from './options-picker';
+export * from './subscribe-card';

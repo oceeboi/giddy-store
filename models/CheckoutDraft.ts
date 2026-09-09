@@ -1,6 +1,9 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { nanoid } from 'nanoid';
 
+/**
+ * All amount are in the lowest eg starting from kobo...
+ */
 export interface ICheckoutItem {
   productId: string;
   variantId: string;
@@ -158,10 +161,10 @@ const CheckoutDraftSchema = new Schema<ICheckoutDraft>(
       default: () => new Date(Date.now() + 15 * 60 * 1000),
     },
 
-    // Auto-cleanup stale drafts after 14 days
+    // Auto-cleanup stale drafts after 14 days for texting 15 minutes of inactivity. This is a TTL index that MongoDB will automatically delete after the specified time.
     expiresAt: {
       type: Date,
-      default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
       index: { expires: 0 },
     },
   },

@@ -28,11 +28,7 @@ export const checkoutItemSchema = z.object({
   size: z.string().optional(),
   color: z.string().optional(),
   unitPrice: z.number().positive('Price must be greater than zero'),
-  quantity: z
-    .number()
-    .int()
-    .min(1, 'Quantity must be at least 1')
-    .max(10, 'Maximum 10 units per item'),
+  quantity: z.number().int().min(1, 'Quantity must be at least 1'),
   image: z.string().url('Invalid image URL'),
 });
 
@@ -66,7 +62,7 @@ export const giftOptionsSchema = z.object({
 export const createCheckoutDraftSchema = z
   .object({
     checkoutToken: z.string().optional(), // Provided if updating an existing draft session
-    customer: customerInfoSchema,
+    customer: customerInfoSchema.optional(),
     cartItems: z.array(checkoutItemSchema).min(1, 'Cart must contain at least one item'),
     shippingAddress: addressSchema.optional(),
     billingAddress: addressSchema.optional(),
@@ -75,7 +71,7 @@ export const createCheckoutDraftSchema = z
     clientNotes: z.string().max(1000, 'Notes cannot exceed 1000 characters').trim().optional(),
     isAdvisorGenerated: z.boolean().default(false), // Flag for VIP concierge orders
   })
-  .refine((data) => Boolean(data.customer.userId || data.customer.guestEmail), {
+  .refine((data) => Boolean(data.customer?.userId || data.customer?.guestEmail), {
     message: 'Either userId or guestEmail must be provided for customer identification',
     path: ['customer'],
   });
