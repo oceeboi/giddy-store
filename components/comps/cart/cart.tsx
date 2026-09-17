@@ -2,11 +2,11 @@
 
 import { Sheet } from '@/components/shared/sheet';
 import { format_currency } from '@/utils/format';
-import { Minus, Plus, ShoppingCartIcon } from 'lucide-react';
+import { Minus, Plus, ShoppingCartIcon, X } from 'lucide-react';
 import Link from 'next/link';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { useCart } from '@/store/cart.hook';
-import { CartItem } from '@/types/cart.type';
+
 import Image from 'next/image';
 import { usePublicProductQuery } from '@/hooks/use-product.hook';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -103,14 +103,14 @@ export function CartComponent() {
       <Sheet.Content
         side="right"
         size="md"
-        className="flex h-full w-full flex-col bg-white font-archivo text-black shadow-none"
+        className="flex h-full w-full flex-col bg-white font-archivo text-black shadow-none border-l border-black p-0"
       >
         {/* Header */}
-        <Sheet.Header className="border-b border-neutral-200 px-6 py-5">
-          <Sheet.Title className="m-0 font-archivo text-base font-normal uppercase tracking-wider text-black">
+        <Sheet.Header className="border-b border-neutral-300! px-6 py-5">
+          <Sheet.Title className="m-0 font-archivo text-xs font-bold uppercase tracking-widest text-black">
             <div className="flex items-center justify-between">
               <span className="text-black">Your Cart</span>
-              <span className="font-archivo text-xs font-light text-neutral-500">
+              <span className="font-mono text-xs font-light text-[#767676]">
                 ({itemCartCount} {itemCartCount === 1 ? 'ITEM' : 'ITEMS'})
               </span>
             </div>
@@ -121,13 +121,13 @@ export function CartComponent() {
         <AnimatePresence mode="wait">
           {alert && (
             <motion.div
-              className="border-b border-neutral-200 bg-neutral-100 px-6 py-3 font-archivo text-xs font-normal text-neutral-900"
+              className="border-b border-black bg-neutral-900 px-6 py-3 font-archivo text-xs font-normal text-white"
               role="alert"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
             >
-              <span className="block">{alert.message}</span>
+              <span className="block uppercase tracking-tight">{alert.message}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -138,7 +138,7 @@ export function CartComponent() {
           style={{ scrollbarWidth: 'thin' }}
         >
           {items.length > 0 ? (
-            <div className="divide-y divide-neutral-100">
+            <div className="divide-y divide-neutral-200">
               {items.map((item) => (
                 <CartItemRow
                   key={item.cartItemId}
@@ -152,11 +152,11 @@ export function CartComponent() {
               ))}
             </div>
           ) : (
-            <div className="flex h-full flex-col justify-center py-12 text-center font-archivo">
-              <p className="text-xs font-normal uppercase tracking-widest text-neutral-400">
+            <div className="flex h-full flex-col items-center justify-center py-12 text-center font-archivo">
+              <p className="text-xs font-bold uppercase tracking-widest text-[#111111]">
                 Your Cart Is Empty
               </p>
-              <p className="mt-2 text-sm font-light text-neutral-600">
+              <p className="mt-2 text-xs font-light uppercase text-[#767676]">
                 Add items to begin checkout.
               </p>
             </div>
@@ -164,30 +164,36 @@ export function CartComponent() {
         </div>
 
         {/* Footer & Actions */}
-        <Sheet.Footer className="flex-col border-t border-neutral-200 px-6 py-5 font-archivo">
+        <Sheet.Footer className="flex-col border-t border-neutral-300! px-6 py-5 font-archivo">
           <div className="mb-5 flex w-full items-center justify-between">
-            <span className="text-xs font-normal uppercase tracking-widest text-neutral-500">
+            <span className="text-xs font-archivo font-bold uppercase tracking-widest text-[#767676]">
               Subtotal
             </span>
-            <span className="font-archivo text-base font-normal tracking-tight text-black">
-              {format_currency(subtotal!)}
+            <span className="font-archivo text-sm font-semibold tracking-tight text-[#111111]">
+              {format_currency(subtotal ?? 0)}
             </span>
           </div>
 
-          <div className="flex w-full flex-col gap-2.5">
+          <div className="flex w-full flex-col gap-2">
+            {/* Main Checkout Button */}
             <button
-              className="inline-flex w-full items-center justify-center border border-black bg-black py-3.5 font-archivo text-xs font-medium uppercase tracking-wider text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-black"
+              className="group relative inline-flex w-full cursor-pointer items-center justify-center overflow-hidden border border-black bg-black py-3.5 font-archivo text-xs font-bold uppercase tracking-wider text-white transition-all hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
               onClick={Checkout}
+              disabled={items.length === 0}
             >
-              Checkout
+              <span className="relative font-archivo z-10">Checkout</span>
             </button>
 
+            {/* View Cart Outlined Link */}
             <Link
               href="/cart"
               onClick={() => setIsOpen(false)}
-              className="inline-flex w-full items-center justify-center border border-neutral-200 bg-white py-3 font-archivo text-xs font-medium uppercase tracking-wider text-black transition-colors hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-black"
+              className="group relative flex w-full cursor-pointer items-center justify-center overflow-hidden border border-black py-3 text-xs font-bold uppercase tracking-wider text-black transition-colors"
             >
-              View Cart
+              <span className="relative z-10 transition-colors duration-150 group-hover:text-white">
+                View Cart
+              </span>
+              <div className="absolute left-0 h-full w-0 bg-black transition-all duration-150 ease-in-out group-hover:w-full" />
             </Link>
           </div>
         </Sheet.Footer>
@@ -195,6 +201,19 @@ export function CartComponent() {
     </Sheet>
   );
 }
+
+type CartItem = {
+  cartItemId: string;
+  slug: string;
+  title: string;
+  price: number;
+  quantity: number;
+  color: string;
+  colorId: string;
+  size: string;
+  sizeId: string;
+  image?: string;
+};
 
 type CartItemProps = {
   item: CartItem;
@@ -211,7 +230,7 @@ type CartItemProps = {
   ) => void;
 };
 
-function CartItemRow({
+export function CartItemRow({
   item,
   removeItem,
   updateQuantity,
@@ -220,52 +239,43 @@ function CartItemRow({
   setAlert,
 }: CartItemProps) {
   const lineTotal = item.price * item.quantity;
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-
-  function onToggle() {
-    setIsOpen(!isOpen);
-  }
+  const [isSizeOpen, setIsSizeOpen] = useState<boolean>(false);
 
   const { data: clothingData, isLoading } = usePublicProductQuery(item.slug);
 
   const availableVariantsForColor =
-    clothingData?.variants.filter((variant) => variant.colorId === item.colorId) || [];
+    clothingData?.variants?.filter((variant) => variant.colorId === item.colorId) || [];
 
   function handleSizeChange(newSize: string, newSizeId: string) {
+    const targetVariant = availableVariantsForColor.find((v) => v.sizeId === newSizeId);
     updateSize(
       item.cartItemId,
       newSize,
       newSizeId,
-      availableVariantsForColor.find((variant) => variant.sizeId === newSizeId)
-        ?.availableQuantity || 1,
-      availableVariantsForColor.find((variant) => variant.sizeId === newSizeId)?.id || '1'
+      targetVariant?.availableQuantity || 1,
+      targetVariant?.id || '1'
     );
-    setIsOpen(false);
+    setIsSizeOpen(false);
   }
 
   function handleUpdateQuantity(newQuantity: number) {
-    const variant = availableVariantsForColor.find((variant) => variant.sizeId === item.sizeId);
+    const variant = availableVariantsForColor.find((v) => v.sizeId === item.sizeId);
     if (variant && newQuantity > variant.availableQuantity) {
       setAlert({
-        message: `Only ${variant.availableQuantity} items available in stock for this size.`,
+        message: `Only ${variant.availableQuantity} items available for this size.`,
       });
       return;
     }
 
     newQuantity = Math.max(1, newQuantity);
-    updateQuantity(
-      item.cartItemId,
-      newQuantity,
-      availableVariantsForColor.find((variant) => variant.sizeId === item.sizeId)
-        ?.availableQuantity || 1
-    );
+    updateQuantity(item.cartItemId, newQuantity, variant?.availableQuantity || 1);
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-6 font-archivo">
-        <span className="text-xs font-light text-neutral-400 uppercase tracking-widest">
-          LOADING...
+      <div className="flex h-28 w-full items-center justify-center py-5 font-archivo">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#767676]">
+          Loading details...
         </span>
       </div>
     );
@@ -273,8 +283,8 @@ function CartItemRow({
 
   return (
     <div className="flex w-full gap-4 py-5 font-archivo">
-      {/* Product Image */}
-      <div className="relative h-24 w-20 shrink-0 bg-neutral-100">
+      {/* Product Image Frame */}
+      <div className="relative h-24 w-20 shrink-0 border border-neutral-200 bg-neutral-100">
         {item.image ? (
           <Image
             src={item.image}
@@ -284,65 +294,71 @@ function CartItemRow({
             className="object-cover object-center"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center font-archivo text-[10px] font-light uppercase text-neutral-400">
+          <div className="flex h-full w-full items-center justify-center font-archivo text-[9px] font-medium uppercase text-[#767676]">
             No Image
           </div>
         )}
       </div>
 
-      {/* Details & Controls */}
+      {/* Details & Controls Column */}
       <div className="flex flex-1 flex-col justify-between min-w-0">
         <div className="flex flex-col gap-1">
+          {/* Title & Price Header */}
           <div className="flex items-start justify-between gap-2">
             <Link
               href={`/collections/${item.slug}`}
               onClick={() => setOpen(false)}
               className="truncate"
             >
-              <h4 className="truncate font-archivo text-xs font-medium uppercase tracking-tight text-black hover:opacity-70">
+              <h4 className="truncate font-archivo text-xs font-bold uppercase tracking-tight text-[#111111] hover:underline">
                 {item.title}
               </h4>
             </Link>
 
-            <span className="shrink-0 font-archivo text-xs font-normal tracking-tight text-black">
+            <span className="shrink-0 font-mono text-xs font-semibold tracking-tight text-[#111111]">
               {format_currency(lineTotal)}
             </span>
           </div>
 
-          <div className="flex items-center text-xs text-neutral-500 font-archivo">
-            <span className="uppercase font-light">{item.color}</span>
-            <span className="mx-1.5 font-light">/</span>
-            <span className="uppercase font-medium text-black">{item.size}</span>
+          {/* Color & Size Meta Row */}
+          <div className="flex items-center text-xs text-[#767676]">
+            <span className="uppercase font-normal">{item.color}</span>
+            <span className="mx-1 font-light">/</span>
+            <span className="uppercase font-bold text-[#111111]">{item.size}</span>
             <button
               type="button"
-              onClick={onToggle}
-              className="ml-2.5 font-archivo text-[11px] font-light underline text-neutral-800 transition-opacity hover:opacity-60"
+              onClick={() => setIsSizeOpen(!isSizeOpen)}
+              className="ml-2 font-archivo text-[10px] font-semibold uppercase underline text-[#111111] hover:text-[#767676] transition-colors"
             >
-              Change
+              {isSizeOpen ? 'Cancel' : 'Edit Size'}
             </button>
           </div>
 
-          {/* Size Selector Drawer */}
+          {/* Expandable Size Selector Grid */}
           <AnimatePresence mode="wait">
-            {isOpen && (
+            {isSizeOpen && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mt-2 grid grid-cols-5 gap-1 pt-1 font-archivo"
+                className="mt-2 grid grid-cols-5 gap-1 border-t border-neutral-100 pt-2"
               >
                 {availableVariantsForColor.map((variant: any) => {
-                  const outOfStock = variant.availableQuantity <= 0 || !variant.active;
+                  const outOfStock = variant.availableQuantity <= 0 || variant.active === false;
+                  const isSelected = variant.sizeId === item.sizeId;
+
                   return (
                     <button
                       key={variant.id}
                       type="button"
                       disabled={outOfStock}
                       onClick={() => handleSizeChange(variant.size, variant.sizeId)}
-                      className={`flex items-center justify-center border py-1 font-archivo text-[10px] font-normal uppercase transition-colors ${
-                        outOfStock
-                          ? 'border-neutral-100 bg-neutral-50 text-neutral-300 line-through'
-                          : 'border-neutral-200 bg-white text-black hover:border-black hover:bg-black hover:text-white'
+                      className={`flex h-7 items-center justify-center border font-archivo text-[10px] font-bold uppercase transition-colors ${
+                        isSelected
+                          ? 'border-black bg-black text-white'
+                          : outOfStock
+                            ? 'border-neutral-200 bg-neutral-50 text-neutral-300 line-through cursor-not-allowed'
+                            : 'border-neutral-200 bg-white text-black hover:border-black'
                       }`}
                     >
                       {variant.size}
@@ -355,38 +371,41 @@ function CartItemRow({
         </div>
 
         {/* Quantity Controls & Remove Action */}
-        <div className="mt-3 flex items-center justify-between font-archivo">
-          <div className="inline-flex items-center border border-neutral-200">
+        <div className="mt-3 flex items-center justify-between">
+          {/* Quantity Stepper */}
+          <div className="inline-flex h-8 items-center border border-neutral-200 bg-white">
             <button
               type="button"
               onClick={() => handleUpdateQuantity(Math.max(1, item.quantity - 1))}
               disabled={item.quantity <= 1}
-              className="flex h-6 w-6 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-30"
+              className="flex h-full w-7 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-30"
               aria-label="Decrease quantity"
             >
-              <Minus className="h-2.5 w-2.5" />
+              <Minus className="h-3 w-3" />
             </button>
 
-            <span className="flex h-6 min-w-7 items-center justify-center px-1 font-archivo text-xs font-normal text-black border-x border-neutral-200">
+            <span className="flex h-full min-w-8 items-center justify-center border-x border-neutral-200 font-mono text-xs font-bold text-neutral-900">
               {item.quantity}
             </span>
 
             <button
               type="button"
               onClick={() => handleUpdateQuantity(item.quantity + 1)}
-              className="flex h-6 w-6 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100"
+              className="flex h-full w-7 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100"
               aria-label="Increase quantity"
             >
-              <Plus className="h-2.5 w-2.5" />
+              <Plus className="h-3 w-3" />
             </button>
           </div>
 
+          {/* Remove Button */}
           <button
             type="button"
-            className="font-archivo text-[11px] font-light uppercase tracking-wider text-neutral-400 hover:text-black transition-colors"
+            className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#767676] hover:text-black transition-colors"
             onClick={() => removeItem(item.cartItemId)}
           >
-            Remove
+            <X className="h-3 w-3" />
+            <span>Remove</span>
           </button>
         </div>
       </div>

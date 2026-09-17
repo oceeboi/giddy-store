@@ -21,8 +21,8 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
           <Footer />
           <Toaster />
         </ToastProvider>
-        <ReactQueryDevtools initialIsOpen={false} />
-        <TanStackDevtools plugins={[tableDevtoolsPlugin()]} />
+        {/* <ReactQueryDevtools initialIsOpen={false} /> */}
+        {/* <TanStackDevtools plugins={[tableDevtoolsPlugin()]} /> */}
       </QueryClientProvider>
       {/* {!isSubscribed && (
         <div className="bg-black/50 fixed inset-0 z-50 flex items-center justify-center">

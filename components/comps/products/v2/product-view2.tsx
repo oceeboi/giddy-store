@@ -8,12 +8,13 @@ import { Heart, Minus, Plus } from 'lucide-react';
 import { ProductSizeSelector } from '@/components/comps/products/product-size';
 import z from 'zod';
 import { useCart } from '@/store/cart.hook';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ProductColorSelector } from './product-color';
 import { useWishlist } from '@/store/wishlist.hook';
 import { cn } from '@/lib/utils';
+import { StickyAddToCartWrapper } from './sticky-add-to-cart-wrapper';
 
 type ProductViewProps = {
   product_slug: string;
@@ -29,12 +30,13 @@ const productCatalogSchema = z.object({
 export type ProductCatalogFormValues = z.input<typeof productCatalogSchema>;
 
 export function ProductViewV2({ product_slug }: ProductViewProps) {
+  const mainAddToCartRef = useRef<HTMLButtonElement>(null);
   const { data: clothingData, isLoading, isError } = usePublicProductQuery(product_slug);
   const { addItem } = useCart();
 
-  const { isWishlisted, addItem: add_to_wishlist, getWishlistKey, toggleItem } = useWishlist();
+  const { isWishlisted, toggleItem, getWishlistKey } = useWishlist();
 
-  const { control, handleSubmit, setValue } = useForm<ProductCatalogFormValues>({
+  const { control, handleSubmit, setValue, getValues } = useForm<ProductCatalogFormValues>({
     resolver: zodResolver(productCatalogSchema),
     defaultValues: {
       id: '',
@@ -85,7 +87,7 @@ export function ProductViewV2({ product_slug }: ProductViewProps) {
     }
   }, [selectedColorId, clothingData, selectedSizeId, setValue]);
 
-  // Derive active variant, stock, color object, and dynamic pricing
+  // Derive active variant, stock, color object, image, and dynamic pricing
   const activeVariant = useMemo(() => {
     return clothingData?.variants?.find(
       (v) => v.colorId === selectedColorId && v.sizeId === selectedSizeId
@@ -104,26 +106,36 @@ export function ProductViewV2({ product_slug }: ProductViewProps) {
   const currentPrice = activeVariant?.priceOverride ?? clothingData?.pricing?.basePrice ?? 0;
   const originalPrice = clothingData?.pricing?.compareAtPrice;
 
+  const itemImage = useMemo(() => {
+    if (!clothingData) return '';
+    return (
+      clothingData.media?.find((m) => m.colorId === selectedColorId)?.url ??
+      clothingData.media?.[0]?.url ??
+      ''
+    );
+  }, [clothingData, selectedColorId]);
+
+  const isCurrentWishlisted = isWishlisted(clothingData?.id ?? '');
+
   function handleAddToWishlist() {
-    if (!clothingData) return;
+    if (!clothingData || !activeVariant) return;
+
+    const wishlistKey = getWishlistKey(clothingData.id);
 
     toggleItem({
-      whishlist: getWishlistKey(clothingData.id),
+      whishlist: wishlistKey,
       productId: clothingData.id,
+
       title: clothingData.name,
       price: currentPrice,
-      image: clothingData.media[0].url,
+      image: itemImage,
       slug: clothingData.slug,
     });
   }
+
   // Add to Cart handler
   function handleAddToCart(data: ProductCatalogFormValues) {
     if (!clothingData || !activeVariant || isOutOfStock) return;
-
-    const itemImage =
-      clothingData.media?.find((m) => m.colorId === data.colorId)?.url ??
-      clothingData.media?.[0]?.url ??
-      '';
 
     addItem(
       {
@@ -144,10 +156,9 @@ export function ProductViewV2({ product_slug }: ProductViewProps) {
     );
   }
 
-  // Buy Now handler (adds item and triggers immediate checkout flow)
+  // Buy Now handler
   const handleBuyNow = handleSubmit((data) => {
     handleAddToCart(data);
-    // Add router navigation or checkout drawer toggle here if required
   });
 
   function handleQuantityChange(delta: number) {
@@ -160,7 +171,7 @@ export function ProductViewV2({ product_slug }: ProductViewProps) {
   if (isError || !clothingData) return null;
 
   return (
-    <section className=" w-full font-archivo">
+    <section className="w-full bg-white font-archivo">
       <section className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
         <section className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           {/* Gallery Section */}
@@ -223,7 +234,7 @@ export function ProductViewV2({ product_slug }: ProductViewProps) {
                     >
                       <Minus className="h-3.5 w-3.5" />
                     </button>
-                    <span className="flex h-full flex-1 items-center justify-center  border-neutral-200 font-mono text-sm font-bold text-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
+                    <span className="flex h-full flex-1 items-center justify-center border-neutral-200 font-mono text-sm font-bold text-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
                       {selectedQuantity}
                     </span>
                     <button
@@ -241,7 +252,9 @@ export function ProductViewV2({ product_slug }: ProductViewProps) {
                     </button>
                   </div>
 
+                  {/* Connected mainAddToCartRef for IntersectionObserver */}
                   <button
+                    ref={mainAddToCartRef}
                     type="submit"
                     disabled={isOutOfStock}
                     className="w-full rounded-none bg-black px-6 py-3 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300 dark:disabled:bg-neutral-800"
@@ -265,23 +278,25 @@ export function ProductViewV2({ product_slug }: ProductViewProps) {
               </form>
             </div>
 
-            {/* Information Accordions & Specifications */}
-            <div className=" flex gap-2 items-center  py-2 ">
+            {/* Wishlist Button */}
+            <div className="flex items-center gap-2 py-2">
               <button
                 onClick={handleAddToWishlist}
                 type="button"
                 className={cn(
-                  ' flex items-center justify-center',
-                  isWishlisted(clothingData.id) && 'text-red-500'
+                  'flex items-center justify-center transition-colors',
+                  isCurrentWishlisted && 'text-red-500'
                 )}
               >
                 <Heart
-                  className={cn(' size-3.75', isWishlisted(clothingData.id) ? 'fill-current' : '')}
+                  className={cn('h-4 w-4', isCurrentWishlisted ? 'fill-current text-red-500' : '')}
                 />
               </button>
-              <p className="uppercase text-[11px] text-[#111111]">save</p>
+              <p className="text-[11px] uppercase text-[#111111]">Save</p>
             </div>
-            <section className=" pt-4 border-t">
+
+            {/* Specifications & Accordions */}
+            <section className="border-t pt-4">
               <div>
                 <FormattedText text={clothingData.description?.narrative} />
               </div>
@@ -366,7 +381,7 @@ export function ProductViewV2({ product_slug }: ProductViewProps) {
                         Standard shipping delivers within
                         <strong className="ml-1 font-semibold">3–5 business days</strong>. Express
                         options available at checkout. Orders are dispatched within one to two
-                        business days from
+                        business days.
                       </div>
                     </Accordion.Content>
                   </Accordion.Item>
@@ -376,6 +391,26 @@ export function ProductViewV2({ product_slug }: ProductViewProps) {
           </div>
         </section>
       </section>
+      <section>
+        <div>Similar Product</div>
+        <div>Recently viewed Product</div>
+      </section>
+      {/* Sticky Bottom Bar with IntersectionObserver */}
+      <StickyAddToCartWrapper
+        mainButtonRef={mainAddToCartRef}
+        title={clothingData.name}
+        price={currentPrice}
+        image={itemImage}
+        selectedColorName={selectedColorObj?.name}
+        selectedSizeName={activeVariant?.size}
+        isOutOfStock={isOutOfStock}
+        isWishlisted={isCurrentWishlisted}
+        onToggleWishlist={handleAddToWishlist}
+        max_quantiy={activeVariant?.availableQuantity!}
+        onAddToCart={(quantity) => {
+          handleAddToCart({ ...getValues(), quantity });
+        }}
+      />
     </section>
   );
 }
@@ -392,7 +427,6 @@ function FormattedText({ text }: { text?: string }) {
   );
 }
 
-// Icon Helpers
 function PlusIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2">
