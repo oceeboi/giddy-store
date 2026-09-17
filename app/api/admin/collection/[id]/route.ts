@@ -1,5 +1,8 @@
-import { err, ok, validationErr } from '@/lib/auth/response';
+import { Permission } from '@/config/rbac';
+import { err, ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
+import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
+import { AuditAction } from '@/models/Auditlog';
 import Collection from '@/models/Collection';
 import Product from '@/models/Product';
 import { updateCollectionSchema } from '@/schemas/update-catalogs.schema';
@@ -44,10 +47,10 @@ async function get_collection_id(ctx: RouteContext<'/api/admin/collection/[id]'>
 }
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/api/admin/collection/[id]'>) {
-  //   const authorization = await requirePermission(Permission.COLLECTIONS_READ);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.COLLECTIONS_READ);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const collection_id = await get_collection_id(ctx);
   if (!Types.ObjectId.isValid(collection_id)) {
@@ -68,10 +71,10 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/api/admin/colle
 }
 
 export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/collection/[id]'>) {
-  //   const authorization = await requirePermission(Permission.COLLECTIONS_WRITE);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.COLLECTIONS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const collection_id = await get_collection_id(ctx);
   if (!Types.ObjectId.isValid(collection_id)) {
@@ -125,26 +128,26 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/coll
 
   await found_collection.save();
 
-  //   writeAuditLog({
-  //     userId: null,
-  //     actorId: new Types.ObjectId(authorization.user.userId),
-  //     action: AuditAction.CATALOG_ENTITY_UPDATED,
-  //     entityType: 'Collection',
-  //     entityId: found_collection._id.toString(),
-  //     oldValues: old_values,
-  //     newValues: serialize_collection(found_collection),
-  //     metadata: { resource: 'collection' },
-  //     ...requestMeta(req),
-  //   });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_UPDATED,
+    entityType: 'Collection',
+    entityId: found_collection._id.toString(),
+    oldValues: old_values,
+    newValues: serialize_collection(found_collection),
+    metadata: { resource: 'collection' },
+    ...requestMeta(req),
+  });
 
   return ok({ collection: serialize_collection(found_collection) });
 }
 
 export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/admin/collection/[id]'>) {
-  //   const authorization = await requirePermission(Permission.COLLECTIONS_WRITE);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.COLLECTIONS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const collection_id = await get_collection_id(ctx);
   if (!Types.ObjectId.isValid(collection_id)) {
@@ -172,16 +175,16 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/admin/col
 
   await Collection.deleteOne({ _id: collection_object_id });
 
-  //   writeAuditLog({
-  //     userId: null,
-  //     actorId: new Types.ObjectId(authorization.user.userId),
-  //     action: AuditAction.CATALOG_ENTITY_DELETED,
-  //     entityType: 'Collection',
-  //     entityId: collection_id,
-  //     oldValues: serialize_collection(found_collection),
-  //     metadata: { resource: 'collection' },
-  //     ...requestMeta(req),
-  //   });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_DELETED,
+    entityType: 'Collection',
+    entityId: collection_id,
+    oldValues: serialize_collection(found_collection),
+    metadata: { resource: 'collection' },
+    ...requestMeta(req),
+  });
 
   return ok({ deleted: true });
 }

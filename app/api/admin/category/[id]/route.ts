@@ -1,5 +1,8 @@
-import { err, ok, validationErr } from '@/lib/auth/response';
+import { Permission } from '@/config/rbac';
+import { err, ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
+import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
+import { AuditAction } from '@/models/Auditlog';
 import Category from '@/models/Category';
 import Product from '@/models/Product';
 import { updateCategorySchema } from '@/schemas/update-catalogs.schema';
@@ -53,10 +56,10 @@ async function get_category_id(ctx: RouteContext<'/api/admin/category/[id]'>) {
 }
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/api/admin/category/[id]'>) {
-  //   const authorization = await requirePermission(Permission.CATEGORIES_READ);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.CATEGORIES_READ);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const category_id = await get_category_id(ctx);
   if (!Types.ObjectId.isValid(category_id)) {
@@ -74,10 +77,10 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/api/admin/categ
 }
 
 export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/category/[id]'>) {
-  //   const authorization = await requirePermission(Permission.CATEGORIES_WRITE);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.CATEGORIES_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const category_id = await get_category_id(ctx);
   if (!Types.ObjectId.isValid(category_id)) {
@@ -148,26 +151,26 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/cate
 
   await found_category.save();
 
-  //   writeAuditLog({
-  //     userId: null,
-  //     actorId: new Types.ObjectId(authorization.user.userId),
-  //     action: AuditAction.CATALOG_ENTITY_UPDATED,
-  //     entityType: 'Category',
-  //     entityId: found_category._id.toString(),
-  //     oldValues: old_values,
-  //     newValues: serialize_category(found_category),
-  //     metadata: { resource: 'category' },
-  //     ...requestMeta(req),
-  //   });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_UPDATED,
+    entityType: 'Category',
+    entityId: found_category._id.toString(),
+    oldValues: old_values,
+    newValues: serialize_category(found_category as any),
+    metadata: { resource: 'category' },
+    ...requestMeta(req),
+  });
 
   return ok({ category: serialize_category(found_category as any) });
 }
 
 export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/admin/category/[id]'>) {
-  //   const authorization = await requirePermission(Permission.CATEGORIES_WRITE);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.CATEGORIES_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const category_id = await get_category_id(ctx);
   if (!Types.ObjectId.isValid(category_id)) {
@@ -198,16 +201,16 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/admin/cat
 
   await Category.deleteOne({ _id: category_object_id });
 
-  //   writeAuditLog({
-  //     userId: null,
-  //     actorId: new Types.ObjectId(authorization.user.userId),
-  //     action: AuditAction.CATALOG_ENTITY_DELETED,
-  //     entityType: 'Category',
-  //     entityId: category_id,
-  //     oldValues: serialize_category(found_category),
-  //     metadata: { resource: 'category' },
-  //     ...requestMeta(req),
-  //   });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_DELETED,
+    entityType: 'Category',
+    entityId: category_id,
+    oldValues: serialize_category(found_category as any),
+    metadata: { resource: 'category' },
+    ...requestMeta(req),
+  });
 
   return ok({ deleted: true });
 }

@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 import { Field, PasswordInput } from '@/components/shared/form';
 import { toast } from '../toast/toast';
-// import { AuthService } from '@/services/auth.service';
+import { AuthService } from '@/services/auth.service';
 
 const resetPasswordSchema = z
   .object({
@@ -34,7 +34,7 @@ type TokenState = { kind: 'checking' } | { kind: 'valid' } | { kind: 'invalid'; 
 export function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  // const authService = useMemo(() => new AuthService(), []);
+  const authService = useMemo(() => new AuthService(), []);
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverSuccess, setServerSuccess] = useState<string | null>(null);
 
@@ -54,22 +54,21 @@ export function ResetPasswordForm() {
 
     setTokenState({ kind: 'checking' });
 
-    // authService.validateResetToken(token).then((result) => {
-    //   if (!is_active) return;
+    authService.validateResetToken(token).then((result) => {
+      if (!is_active) return;
 
-    //   if (!result.success) {
-    //     setTokenState({ kind: 'invalid', message: result.message });
-    //     return;
-    //   }
+      if (!result.success) {
+        setTokenState({ kind: 'invalid', message: result.message });
+        return;
+      }
 
-    //   setTokenState({ kind: 'valid' });
-    // });
+      setTokenState({ kind: 'valid' });
+    });
 
-    setTokenState({ kind: 'valid' });
     return () => {
-      is_active = true;
+      is_active = false;
     };
-  }, [, token]);
+  }, [authService, token]);
 
   const {
     register,
@@ -86,8 +85,7 @@ export function ResetPasswordForm() {
       return;
     }
 
-    // const result = await authService.resetPassword({ token, ...data });
-    const result = { success: false, message: 'Failed to update password. Please try again.' }; // Mock response
+    const result = await authService.resetPassword({ token, ...data });
 
     if (!result.success) {
       setServerError(result.message);
@@ -98,7 +96,7 @@ export function ResetPasswordForm() {
     setServerSuccess(result.message);
 
     toast.success(result.message || 'Password updated successfully.');
-    // router.push('/login');
+    router.push('/login');
   };
 
   if (tokenState.kind === 'checking') {

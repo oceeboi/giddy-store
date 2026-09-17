@@ -1,10 +1,13 @@
-import { err, ok, validationErr } from '@/lib/auth/response';
+import { Permission } from '@/config/rbac';
+import { err, ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
+import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
 import {
   PRODUCT_SELECT_FIELDS,
   serializeProduct,
   validateProductRelations,
 } from '@/lib/service-route/admin-product-route-helpers';
+import { AuditAction } from '@/models/Auditlog';
 import Product from '@/models/Product';
 import { updateProductSchema } from '@/schemas/update-product.schema';
 import { slugify } from '@/utils/slug';
@@ -23,6 +26,10 @@ async function getProductId(ctx: RouteContext): Promise<string> {
 }
 
 export async function GET(_req: NextRequest, ctx: RouteContext) {
+  const authorization = await requirePermission(Permission.PRODUCTS_READ);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
   const productId = await getProductId(ctx);
   if (!Types.ObjectId.isValid(productId)) {
     return err('Invalid product id', 400);
@@ -56,6 +63,10 @@ function format_validation_issues(issues: { path: PropertyKey[]; message: string
 }
 
 export async function PATCH(req: NextRequest, ctx: RouteContext) {
+  const authorization = await requirePermission(Permission.PRODUCTS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
   const productId = await getProductId(ctx);
   if (!Types.ObjectId.isValid(productId)) {
     return err('Invalid product id', 400);
@@ -262,6 +273,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
   existingProduct.description = updatedDescription;
   existingProduct.seo = updatedSeo;
 
+  const oldValues = serializeProduct(existingProduct as any);
   await existingProduct.save();
 
   // 8. Fetch updated & populated document
@@ -276,11 +288,27 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
   if (!updatedProduct) {
     return err('Product not found after update', 500);
   }
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_UPDATED,
+    entityType: 'Product',
+    entityId: updatedProduct._id.toString(),
+    oldValues,
+    newValues: serializeProduct(updatedProduct as any),
+    metadata: { resource: 'product' },
+    ...requestMeta(req),
+  });
 
   return ok({ product: serializeProduct(updatedProduct as any) });
 }
 
 export async function DELETE(_req: NextRequest, ctx: RouteContext) {
+  const authorization = await requirePermission(Permission.PRODUCTS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
   const productId = await getProductId(ctx);
   if (!Types.ObjectId.isValid(productId)) {
     return err('Invalid product id', 400);
@@ -301,15 +329,15 @@ export async function DELETE(_req: NextRequest, ctx: RouteContext) {
   await Product.deleteOne({ _id: new Types.ObjectId(productId) });
 
   // Optional: Add audit logging here if desired
-  // writeAuditLog({
-  //   userId: null,
-  //   actorId: new Types.ObjectId(authorization.user.userId),
-  //   action: AuditAction.CATALOG_ENTITY_DELETED,
-  //   entityType: 'Product',
-  //   entityId: productId,
-  //   metadata: { resource: 'product' },
-  //   ...requestMeta(_req),
-  // });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_DELETED,
+    entityType: 'Product',
+    entityId: productId,
+    metadata: { resource: 'product' },
+    ...requestMeta(_req),
+  });
 
   return ok({ message: 'Product deleted successfully', id: productId });
 }

@@ -48,3 +48,53 @@ export const requestMeta = (req: NextRequest) => ({
     null,
   userAgent: req.headers.get('user-agent') ?? null,
 });
+
+// ─── Audit log writer ─────────────────────────────────────────────────────────
+// Fire-and-forget — never let audit failures break the main flow.
+// We deliberately do not await this in request handlers; if it fails the
+// auth action already succeeded and the user should not be penalised.
+
+type AuditParams = {
+  userId?: Types.ObjectId | null;
+  actorId?: Types.ObjectId | null;
+  // action: AuditAction;
+  action: any;
+  entityType?: string | null;
+  entityId?: string | null;
+  oldValues?: Record<string, unknown> | null;
+  newValues?: Record<string, unknown> | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export const writeAuditLog = (params: AuditParams): void => {
+  // AuditLog.create({
+  //   userId: params.userId ?? null,
+  //   actorId: params.actorId ?? params.userId ?? null,
+  //   action: params.action,
+  //   entityType: params.entityType ?? null,
+  //   entityId: params.entityId ?? null,
+  //   oldValues: params.oldValues ?? null,
+  //   newValues: params.newValues ?? null,
+  //   ipAddress: params.ipAddress ?? null,
+  //   userAgent: params.userAgent ?? null,
+  //   metadata: params.metadata ?? null,
+  // }).catch((auditErr: unknown) => {
+  //   // Log to server console but do not surface to client
+  //   console.error('[AuditLog] write failed:', auditErr);
+  // });
+
+  console.log({
+    userId: params.userId ?? null,
+    actorId: params.actorId ?? params.userId ?? null,
+    action: params.action,
+    entityType: params.entityType ?? null,
+    entityId: params.entityId ?? null,
+    oldValues: params.oldValues ?? null,
+    newValues: params.newValues ?? null,
+    ipAddress: params.ipAddress ?? null,
+    userAgent: params.userAgent ?? null,
+    metadata: params.metadata ?? null,
+  });
+};

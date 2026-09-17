@@ -1,7 +1,11 @@
-import { err, ok, validationErr } from '@/lib/auth/response';
+import { Permission } from '@/config/rbac';
+import { err, ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
+import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
+import { AuditAction } from '@/models/Auditlog';
 import ProductSize from '@/models/ProductSize';
 import { createSizeSchema } from '@/schemas/create-catalogs.schema';
+import { Types } from 'mongoose';
 import { NextRequest } from 'next/server';
 
 const size_select_fields = 'name';
@@ -25,10 +29,10 @@ function serialize_size(size: { _id: { toString(): string } | string; name: stri
 }
 
 export async function GET(req: NextRequest) {
-  // const authorization = await requirePermission(Permission.BRANDS_READ);
-  // if (!authorization.ok) {
-  //   return authorization.response;
-  // }
+  const authorization = await requirePermission(Permission.BRANDS_READ);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   await connect_to_database();
 
@@ -55,10 +59,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // const authorization = await requirePermission(Permission.BRANDS_WRITE);
-  // if (!authorization.ok) {
-  //   return authorization.response;
-  // }
+  const authorization = await requirePermission(Permission.BRANDS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const request_body = await req.json().catch(() => null);
   const validation_result = createSizeSchema.safeParse(request_body);
@@ -78,6 +82,24 @@ export async function POST(req: NextRequest) {
 
   const created_size = await ProductSize.create({
     name: payload.size_name,
+  });
+  const audit_meta = requestMeta(req);
+
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_CREATED,
+    entityType: 'Size',
+    entityId: created_size._id.toString(),
+    newValues: {
+      name: created_size.name,
+      slug: created_size.slug,
+    },
+    metadata: {
+      adminUserId: authorization.user.userId,
+      resource: 'size',
+    },
+    ...audit_meta,
   });
 
   return ok({ size: serialize_size(created_size) }, 201);

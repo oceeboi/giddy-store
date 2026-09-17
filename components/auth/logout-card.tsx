@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-// import { AuthService } from '@/services/auth.service';
+import { AuthService } from '@/services/auth.service';
 
 type LogoutState = { kind: 'loading'; message: string } | { kind: 'error'; message: string };
 
 export function LogoutCard() {
   const router = useRouter();
-  // const authService = new AuthService();
+  const authService = new AuthService();
   const hasAttemptedRef = useRef(false);
 
   const [state, setState] = useState<LogoutState>({
@@ -21,18 +21,18 @@ export function LogoutCard() {
     if (hasAttemptedRef.current) return;
     hasAttemptedRef.current = true;
 
-    // authService
-    //   .logout()
-    //   .then(() => {
-    //     router.replace('/login');
-    //   })
-    //   .catch(() => {
-    //   setState({
-    //     kind: 'error',
-    //     message: 'Could not sign out automatically. Please try again.',
-    //   });
-    // });
-  }, [, router]);
+    authService
+      .logout()
+      .then(() => {
+        router.replace('/login');
+      })
+      .catch(() => {
+        setState({
+          kind: 'error',
+          message: 'Could not sign out automatically. Please try again.',
+        });
+      });
+  }, [authService, router]);
 
   return (
     <div className="w-full rounded-none border border-gray-300 bg-gray-50 p-4 text-sm text-gray-900">

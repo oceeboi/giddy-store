@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 import { Field, Input, PasswordInput } from '@/components/shared/form';
-// import { AuthService } from '@/services/auth.service';
+import { AuthService } from '@/services/auth.service';
 import { toast } from '../toast/toast';
 
 const registerSchema = z
@@ -50,7 +50,7 @@ type RegisterFields = z.infer<typeof registerSchema>;
 
 export function RegisterForm() {
   const router = useRouter();
-  // const authService = new AuthService();
+  const authService = new AuthService();
 
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverSuccess, setServerSuccess] = useState<string | null>(null);
@@ -77,8 +77,7 @@ export function RegisterForm() {
     setServerSuccess(null);
 
     try {
-      // const result = await authService.register(data);
-      const result = { success: false, message: 'Failed to create account. Please try again.' }; // Mock response
+      const result = await authService.register(data);
 
       if (!result.success) {
         setServerError(result.message || 'Failed to create account. Please try again.');
@@ -91,7 +90,7 @@ export function RegisterForm() {
 
       // Brief delay to let the user see the success banner before redirect
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push('/profile');
         router.refresh();
       }, 600);
     } catch (err) {

@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 import { Field, Input, PasswordInput } from '@/components/shared/form';
-// import { AuthService } from '@/services/auth.service';
+import { AuthService } from '@/services/auth.service';
 
 const loginSchema = z.object({
   identifier: z
@@ -42,7 +42,7 @@ function normalizeReturnTo(rawReturnTo: string | null): string | null {
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // const authService = new AuthService();
+  const authService = new AuthService();
 
   const [serverError, setServerError] = useState<string | null>(null);
   const returnToPath = normalizeReturnTo(searchParams.get('returnTo'));
@@ -61,7 +61,7 @@ export function LoginForm() {
 
     try {
       // const result = await authService.login(data);
-      const result = { success: false, message: 'Invalid credentials' }; // Mock response
+      const result = await authService.login(data);
 
       if (!result.success) {
         setServerError(result.message || 'Failed to sign in. Please try again.');
@@ -69,7 +69,7 @@ export function LoginForm() {
       }
 
       // Successful login flow
-      router.push(returnToPath ?? '/dashboard');
+      router.push(returnToPath ?? '/orders');
       router.refresh();
     } catch (err) {
       setServerError('An unexpected error occurred. Please try again later.');

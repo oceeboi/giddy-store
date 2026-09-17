@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { Field, Input } from '@/components/shared/form';
 import { useState } from 'react';
 import { toast } from '../toast/toast';
-// import { AuthService } from '@/services/auth.service';
+import { AuthService } from '@/services/auth.service';
 
 const forgotPasswordSchema = z.object({
   identifier: z
@@ -24,7 +24,7 @@ const forgotPasswordSchema = z.object({
 type ForgotPasswordFields = z.infer<typeof forgotPasswordSchema>;
 
 export function ForgotPasswordForm() {
-  // const authService = new AuthService();
+  const authService = new AuthService();
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverSuccess, setServerSuccess] = useState<string | null>(null);
   const {
@@ -38,7 +38,7 @@ export function ForgotPasswordForm() {
 
   const onSubmit = async (data: ForgotPasswordFields) => {
     // const result = await authService.forgotPassword(data);
-    const result = { success: true, message: 'Invalid credentials' }; // Mock response
+    const result = await authService.forgotPassword(data);
 
     if (!result.success) {
       setServerError(result.message || 'An error occurred. Please try again.');

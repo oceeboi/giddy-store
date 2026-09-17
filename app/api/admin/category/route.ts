@@ -1,5 +1,8 @@
-import { err, ok, validationErr } from '@/lib/auth/response';
+import { Permission } from '@/config/rbac';
+import { err, ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
+import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
+import { AuditAction } from '@/models/Auditlog';
 import Category from '@/models/Category';
 import { createCategory } from '@/schemas/create-catalogs.schema';
 import { slugify } from '@/utils/slug';
@@ -66,10 +69,10 @@ function serialize_category(category: {
 }
 
 export async function GET(req: NextRequest) {
-  //   const authorization = await requirePermission(Permission.CATEGORIES_READ);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.CATEGORIES_READ);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   await connect_to_database();
 
@@ -114,10 +117,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  //   const authorization = await requirePermission(Permission.CATEGORIES_WRITE);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.CATEGORIES_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const request_body = await req.json().catch(() => null);
   const validation_result = createCategory.safeParse(request_body);
@@ -158,16 +161,16 @@ export async function POST(req: NextRequest) {
     active: payload.category_active ?? true,
   });
 
-  //   writeAuditLog({
-  //     userId: null,
-  //     actorId: new Types.ObjectId(authorization.user.userId),
-  //     action: AuditAction.CATALOG_ENTITY_CREATED,
-  //     entityType: 'Category',
-  //     entityId: created_category._id.toString(),
-  //     newValues: serialize_category(created_category),
-  //     metadata: { resource: 'category' },
-  //     ...requestMeta(req),
-  //   });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_CREATED,
+    entityType: 'Category',
+    entityId: created_category._id.toString(),
+    newValues: serialize_category(created_category),
+    metadata: { resource: 'category' },
+    ...requestMeta(req),
+  });
 
   return ok({ category: serialize_category(created_category) }, 201);
 }

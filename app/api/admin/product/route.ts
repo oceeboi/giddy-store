@@ -1,4 +1,4 @@
-import { err, ok, requestMeta, validationErr } from '@/lib/auth/response';
+import { err, ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
 
 import connect_to_database from '@/lib/db';
 
@@ -12,6 +12,9 @@ import {
   serializeProduct,
   validateProductRelations,
 } from '@/lib/service-route/admin-product-route-helpers';
+import { AuditAction } from '@/models/Auditlog';
+import { requirePermission } from '@/lib/authorize.middleware';
+import { Permission } from '@/config/rbac';
 
 function format_validation_issues(issues: { path: PropertyKey[]; message: string }[]) {
   return validationErr(
@@ -89,6 +92,11 @@ function buildProductQuery(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const authorization = await requirePermission(Permission.PRODUCTS_READ);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
   // 2. Validate URL search filters
   const queryResult = buildProductQuery(req);
   if (!('query' in queryResult)) {
@@ -114,6 +122,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const authorization = await requirePermission(Permission.PRODUCTS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
   const requestBody = await req.json().catch(() => null);
   const validationResult = createProductSchema.safeParse(requestBody);
 
@@ -241,16 +254,16 @@ export async function POST(req: NextRequest) {
   }
 
   // // 9. Audit Logging
-  // writeAuditLog({
-  //   userId: null,
-  //   actorId: new Types.ObjectId(authorization.user.userId),
-  //   action: AuditAction.CATALOG_ENTITY_CREATED,
-  //   entityType: 'Product',
-  //   entityId: populatedProduct._id.toString(),
-  //   newValues: serializeProduct(populatedProduct),
-  //   metadata: { resource: 'product' },
-  //   ...requestMeta(req),
-  // });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_CREATED,
+    entityType: 'Product',
+    entityId: populatedProduct._id.toString(),
+    newValues: serializeProduct(populatedProduct as any),
+    metadata: { resource: 'product' },
+    ...requestMeta(req),
+  });
 
   return ok({ product: serializeProduct(populatedProduct as any) }, 201);
 }

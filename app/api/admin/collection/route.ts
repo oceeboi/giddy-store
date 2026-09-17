@@ -1,8 +1,12 @@
-import { ok, validationErr } from '@/lib/auth/response';
+import { Permission } from '@/config/rbac';
+import { ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
+import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
+import { AuditAction } from '@/models/Auditlog';
 import Collection from '@/models/Collection';
 import { createCollectionSchema } from '@/schemas/create-catalogs.schema';
 import { slugify } from '@/utils/slug';
+import { Types } from 'mongoose';
 import { NextRequest } from 'next/server';
 
 const collection_select_fields = 'name slug description image active';
@@ -41,10 +45,10 @@ function serialize_collection(collection: {
 }
 
 export async function GET(req: NextRequest) {
-  //   const authorization = await requirePermission(Permission.COLLECTIONS_READ);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.COLLECTIONS_READ);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   await connect_to_database();
 
@@ -78,10 +82,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  //   const authorization = await requirePermission(Permission.COLLECTIONS_WRITE);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.COLLECTIONS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const request_body = await req.json().catch(() => null);
   const validation_result = createCollectionSchema.safeParse(request_body);
@@ -116,16 +120,16 @@ export async function POST(req: NextRequest) {
     active: payload.collection_active ?? true,
   });
 
-  //   writeAuditLog({
-  //     userId: null,
-  //     actorId: new Types.ObjectId(authorization.user.userId),
-  //     action: AuditAction.CATALOG_ENTITY_CREATED,
-  //     entityType: 'Collection',
-  //     entityId: created_collection._id.toString(),
-  //     newValues: serialize_collection(created_collection),
-  //     metadata: { resource: 'collection' },
-  //     ...requestMeta(req),
-  //   });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_CREATED,
+    entityType: 'Collection',
+    entityId: created_collection._id.toString(),
+    newValues: serialize_collection(created_collection),
+    metadata: { resource: 'collection' },
+    ...requestMeta(req),
+  });
 
   return ok({ collection: serialize_collection(created_collection) }, 201);
 }

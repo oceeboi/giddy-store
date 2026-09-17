@@ -1,5 +1,8 @@
-import { err, ok, validationErr } from '@/lib/auth/response';
+import { Permission } from '@/config/rbac';
+import { err, ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
+import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
+import { AuditAction } from '@/models/Auditlog';
 import Brand from '@/models/Brand';
 import Product from '@/models/Product';
 import { updateBrandSchema } from '@/schemas/update-catalogs.schema';
@@ -50,6 +53,11 @@ async function get_brand_id(ctx: RouteContext<'/api/admin/brand/[id]'>) {
 }
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/api/admin/brand/[id]'>) {
+  const authorization = await requirePermission(Permission.BRANDS_READ);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
   const brand_id = await get_brand_id(ctx);
   if (!Types.ObjectId.isValid(brand_id)) {
     return err('Invalid brand id', 400);
@@ -66,10 +74,10 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/api/admin/brand
 }
 
 export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/brand/[id]'>) {
-  //   const authorization = await requirePermission(Permission.BRANDS_WRITE);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.BRANDS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const brand_id = await get_brand_id(ctx);
   if (!Types.ObjectId.isValid(brand_id)) {
@@ -122,26 +130,26 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/bran
 
   await found_brand.save();
 
-  //   writeAuditLog({
-  //     userId: null,
-  //     actorId: new Types.ObjectId(authorization.user.userId),
-  //     action: AuditAction.CATALOG_ENTITY_UPDATED,
-  //     entityType: 'Brand',
-  //     entityId: found_brand._id.toString(),
-  //     oldValues: old_values,
-  //     newValues: serialize_brand(found_brand),
-  //     metadata: { resource: 'brand' },
-  //     ...requestMeta(req),
-  //   });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_UPDATED,
+    entityType: 'Brand',
+    entityId: found_brand._id.toString(),
+    oldValues: old_values,
+    newValues: serialize_brand(found_brand),
+    metadata: { resource: 'brand' },
+    ...requestMeta(req),
+  });
 
   return ok({ brand: serialize_brand(found_brand) });
 }
 
 export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/admin/brand/[id]'>) {
-  //   const authorization = await requirePermission(Permission.BRANDS_WRITE);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.BRANDS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const brand_id = await get_brand_id(ctx);
   if (!Types.ObjectId.isValid(brand_id)) {
@@ -163,16 +171,16 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/admin/bra
 
   await Brand.deleteOne({ _id: brand_object_id });
 
-  //   writeAuditLog({
-  //     userId: null,
-  //     actorId: new Types.ObjectId(authorization.user.userId),
-  //     action: AuditAction.CATALOG_ENTITY_DELETED,
-  //     entityType: 'Brand',
-  //     entityId: brand_id,
-  //     oldValues: serialize_brand(found_brand),
-  //     metadata: { resource: 'brand' },
-  //     ...requestMeta(req),
-  //   });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_DELETED,
+    entityType: 'Brand',
+    entityId: brand_id,
+    oldValues: serialize_brand(found_brand),
+    metadata: { resource: 'brand' },
+    ...requestMeta(req),
+  });
 
   return ok({ deleted: true });
 }

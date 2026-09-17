@@ -13,7 +13,7 @@ export default function AuthorizedAdminLayout({ children }: { children: React.Re
           </div>
 
           {/* Main Content */}
-          <div className="min-w-0">{children}</div>
+          <div className="min-w-0 font-archivo">{children}</div>
         </section>
       </div>
     </section>

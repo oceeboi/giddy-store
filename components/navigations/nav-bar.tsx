@@ -112,7 +112,7 @@ export function NavigationTopBar({ cartCount = 0 }: NavigationTopBarProps) {
             <SearchBar onSearchOpen={() => setIsMobileMenuOpen(false)} />
             <CartComponent />
             <Link
-              href="/account"
+              href="/profile"
               aria-label="Account"
               className="transition-opacity hover:opacity-60 hidden sm:block focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4"
             >

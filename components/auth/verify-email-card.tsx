@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-// import { AuthService } from '@/services/auth.service';
+import { AuthService } from '@/services/auth.service';
 
 type VerifyState =
   | { kind: 'loading'; message: string }
@@ -12,7 +12,7 @@ type VerifyState =
 
 export function VerifyEmailCard() {
   const searchParams = useSearchParams();
-  // const authService = new AuthService();
+  const authService = new AuthService();
   const hasAttemptedRef = useRef(false);
 
   const [state, setState] = useState<VerifyState>({
@@ -34,23 +34,23 @@ export function VerifyEmailCard() {
       return;
     }
 
-    // authService
-    //   .verifyEmail({ token })
-    //   .then((result) => {
-    //     if (!result.success) {
-    //       setState({ kind: 'error', message: result.message });
-    //       return;
-    //     }
+    authService
+      .verifyEmail({ token })
+      .then((result) => {
+        if (!result.success) {
+          setState({ kind: 'error', message: result.message });
+          return;
+        }
 
-    //     setState({ kind: 'success', message: 'Email verified Successfully' });
-    //   })
-    //   .catch(() => {
-    //     setState({
-    //       kind: 'error',
-    //       message: 'Unable to verify your email right now. Please try again shortly.',
-    //     });
-    //   });
-  }, [, searchParams]);
+        setState({ kind: 'success', message: 'Email verified Successfully' });
+      })
+      .catch(() => {
+        setState({
+          kind: 'error',
+          message: 'Unable to verify your email right now. Please try again shortly.',
+        });
+      });
+  }, [authService, searchParams]);
 
   const toneClass =
     state.kind === 'success'

@@ -1,5 +1,8 @@
-import { ok, validationErr } from '@/lib/auth/response';
+import { Permission } from '@/config/rbac';
+import { ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
+import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
+import { AuditAction } from '@/models/Auditlog';
 import Brand from '@/models/Brand';
 import { createBrandSchema } from '@/schemas/create-catalogs.schema';
 import { slugify } from '@/utils/slug';
@@ -44,10 +47,10 @@ function serialize_brand(brand: {
 }
 
 export async function GET(req: NextRequest) {
-  //   const authorization = await requirePermission(Permission.BRANDS_READ);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.BRANDS_READ);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   await connect_to_database();
 
@@ -78,10 +81,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  //   const authorization = await requirePermission(Permission.BRANDS_WRITE);
-  //   if (!authorization.ok) {
-  //     return authorization.response;
-  //   }
+  const authorization = await requirePermission(Permission.BRANDS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
 
   const request_body = await req.json().catch(() => null);
   const validation_result = createBrandSchema.safeParse(request_body);
@@ -118,25 +121,25 @@ export async function POST(req: NextRequest) {
     active: payload.brand_active ?? true,
   });
 
-  //   const audit_meta = requestMeta(req);
+  const audit_meta = requestMeta(req);
 
-  //   writeAuditLog({
-  //     userId: null,
-  //     actorId: new Types.ObjectId(authorization.user.userId),
-  //     action: AuditAction.CATALOG_ENTITY_CREATED,
-  //     entityType: 'Brand',
-  //     entityId: created_brand._id.toString(),
-  //     newValues: {
-  //       name: created_brand.name,
-  //       slug: created_brand.slug,
-  //       active: created_brand.active,
-  //     },
-  //     metadata: {
-  //       adminUserId: authorization.user.userId,
-  //       resource: 'brand',
-  //     },
-  //     ...audit_meta,
-  //   });
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_CREATED,
+    entityType: 'Brand',
+    entityId: created_brand._id.toString(),
+    newValues: {
+      name: created_brand.name,
+      slug: created_brand.slug,
+      active: created_brand.active,
+    },
+    metadata: {
+      adminUserId: authorization.user.userId,
+      resource: 'brand',
+    },
+    ...audit_meta,
+  });
 
   return ok({ brand: serialize_brand(created_brand) }, 201);
 }

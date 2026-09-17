@@ -133,7 +133,7 @@ const ADMIN_NAVIGATION_ITEMS: AdminNavItem[] = [
   },
   {
     name: 'Store Front',
-    href: '/dashboard',
+    href: '/profile',
     icon: Store,
   },
 ];

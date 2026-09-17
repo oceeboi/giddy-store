@@ -1,5 +1,8 @@
-import { err, ok, validationErr } from '@/lib/auth/response';
+import { Permission } from '@/config/rbac';
+import { err, ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
+import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
+import { AuditAction } from '@/models/Auditlog';
 
 import Product from '@/models/Product';
 import ProductSize from '@/models/ProductSize';
@@ -33,6 +36,11 @@ async function get_size_id(ctx: RouteContext<'/api/admin/size/[id]'>) {
 }
 
 export async function GET(_req: NextRequest, ctx: RouteContext<'/api/admin/size/[id]'>) {
+  const authorization = await requirePermission(Permission.BRANDS_READ);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
   const size_id = await get_size_id(ctx);
   if (!Types.ObjectId.isValid(size_id)) {
     return err('Invalid size id', 400);
@@ -49,6 +57,11 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/api/admin/size/
 }
 
 export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/size/[id]'>) {
+  const authorization = await requirePermission(Permission.BRANDS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
   const size_id = await get_size_id(ctx);
   if (!Types.ObjectId.isValid(size_id)) {
     return err('Invalid size id', 400);
@@ -68,6 +81,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/size
   }
 
   const payload = validation_result.data;
+  const old_values = serialize_size(found_size);
 
   if (payload.size_name !== undefined) {
     const trimmed_name = payload.size_name.trim();
@@ -89,10 +103,27 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/size
 
   await found_size.save();
 
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_UPDATED,
+    entityType: 'Size',
+    entityId: found_size._id.toString(),
+    oldValues: old_values,
+    newValues: serialize_size(found_size),
+    metadata: { resource: 'brand' },
+    ...requestMeta(req),
+  });
+
   return ok({ size: serialize_size(found_size) });
 }
 
 export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/admin/size/[id]'>) {
+  const authorization = await requirePermission(Permission.BRANDS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
   const size_id = await get_size_id(ctx);
   if (!Types.ObjectId.isValid(size_id)) {
     return err('Invalid size id', 400);
@@ -117,6 +148,17 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/admin/siz
   }
 
   await ProductSize.deleteOne({ _id: size_object_id });
+
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_DELETED,
+    entityType: 'Brand',
+    entityId: size_id,
+    oldValues: serialize_size(found_size),
+    metadata: { resource: 'brand' },
+    ...requestMeta(req),
+  });
 
   return ok({ deleted: true });
 }

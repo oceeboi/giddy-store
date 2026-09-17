@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { generatePresignedUploadUrl } from '@/lib/s3';
+import { authenticateRequest } from '@/lib/auth.middleware';
+import { err } from '@/lib/auth/response';
 
 const presignSchema = z.object({
   fileName: z.string().min(1).max(255),
@@ -12,12 +14,9 @@ const presignSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  // Gate this behind admin auth — presigned URLs are a write-capability
-  // grant, not just a read. Anyone who can hit this route unauthenticated
-  // can upload arbitrary files to your bucket under your product paths.
-  const session = { role: 'admin' }; // Replace with actual session logic
-  if (!session || session.role !== 'admin') {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  const auth_result = await authenticateRequest();
+  if ('error' in auth_result) {
+    return err(auth_result.error ?? 'Unauthorized', 401);
   }
 
   const body = await req.json().catch(() => null);
