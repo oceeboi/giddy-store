@@ -5,6 +5,7 @@ import { STORE_DETAILS } from '@/constants/store-details';
 import { ProductService } from '@/services/product.service';
 import { ClothingProductData } from '@/types/shared/product';
 import { ProductView } from '@/components/comps';
+import { ProductViewV2 } from '@/components/comps/products/v2';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -138,7 +139,7 @@ export default async function ProductDetailsPage({ params }: PageProps) {
         }}
       />
       <article>
-        <ProductView slug={product.slug} />
+        <ProductViewV2 product_slug={product.slug} />
       </article>
     </main>
   );

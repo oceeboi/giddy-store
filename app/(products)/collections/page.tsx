@@ -11,12 +11,20 @@ import {
   Grid3x3,
   LayoutGrid,
   Rows,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 import { ProductCard } from '@/components/comps';
-import { Breadcrumb, FilterSheet, FilterSidebarDesktop, SortModal } from '@/components/shared';
+import {
+  Breadcrumb,
+  FilterSheet,
+  FilterSidebarDesktop,
+  HeroHeader,
+  SortModal,
+} from '@/components/shared';
 import { usePublicProductsQuery } from '@/hooks/use-product.hook';
 import { cn } from '@/lib/utils';
+import { STORE_DETAILS } from '@/constants/store-details';
 
 type PublicProductListParams = {
   search?: string;
@@ -192,124 +200,71 @@ export default function ShoppingPage() {
     <section className="min-h-screen bg-white">
       {/* Header & Breadcrumb Section */}
       <section className="px-4 lg:px-12 pt-8 lg:pt-12 pb-6 border-b border-gray-100">
-        <Breadcrumb className="font-archivo text-xs text-gray-500 mb-2" />
-        <div>
-          <h1 className="lg:text-[44px] md:text-[36px] text-[28px] font-bold text-gray-900 font-archivo-black uppercase tracking-tight">
-            {productName}
-          </h1>
-        </div>
-      </section>
+        {/* <Breadcrumb className="font-archivo text-xs text-gray-500 mb-2" /> */}
 
+        <HeroHeader
+          productName={productName}
+          description={` Explore ${STORE_DETAILS.name} ${productName.toLocaleLowerCase()} clothing, from everyday essentials to elevated streetwear
+              designed for a confident, contemporary look. Discover premium pieces from The leading
+              Nigerian streetwear brand.`}
+        />
+      </section>
+      <div className="mt-4 px-5 border-y border-gray-100 py-3 font-archivo">
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: Filter & Count */}
+          <div className="flex items-center gap-4">
+            <FilterSheet />
+            <p className="whitespace-nowrap text-[11px] uppercase tracking-wider text-[#767676]">
+              {clothing_data?.pagination?.total ?? 0}{' '}
+              {clothing_data?.pagination?.total === 1 ? 'product' : 'products'}
+            </p>
+          </div>
+
+          {/* Right: Sort Dropdown */}
+          <div className="relative group cursor-pointer py-1">
+            <div className="flex items-center gap-1 text-[11px] uppercase">
+              <span className="text-[#767676] whitespace-nowrap">Sort by:</span>
+              <span className="font-medium font-archivo truncate max-w-25 md:max-w-full  text-black">
+                {SORT_DATA_TYPE[selectedSort]}
+              </span>
+            </div>
+
+            {/* Hover Menu */}
+            <div className="absolute right-0 top-full z-20 hidden w-48 pt-2 group-hover:block">
+              <div className="border border-gray-100 bg-white shadow-lg">
+                {SORT_TYPES.map((type) => {
+                  const isActive = type === selectedSort;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleSortSelect(type)}
+                      className={cn(
+                        'flex w-full items-center justify-between px-4 py-2.5 text-left text-xs uppercase transition-colors',
+                        isActive
+                          ? 'bg-gray-100 font-semibold text-black'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      )}
+                    >
+                      <span>{SORT_DATA_TYPE[type]}</span>
+                      {isActive && <Check className="h-3.5 w-3.5 text-black" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       {/* Main Content Layout */}
       <section className="px-4 lg:px-12 pt-8 pb-16">
-        <div className="flex flex-col gap-8 lg:flex-row items-start">
+        <div className="flex flex-col gap-8  items-start">
           {/* Sidebar Area */}
-          <aside className="w-full lg:w-64 shrink-0">
-            {/* Mobile Filter & Sort Bar */}
-            <div className="relative lg:hidden">
-              <div className="flex gap-2.5">
-                <FilterSheet />
-                <button
-                  onClick={() => setIsSortModalOpen(true)}
-                  className="flex flex-1 items-center justify-center gap-1 border border-neutral-400 px-3 py-3 text-sm font-medium whitespace-nowrap bg-white text-black"
-                >
-                  <span className="font-archivo text-xs">Sort by:</span>
-                  <span className="font-archivo-black text-xs truncate max-w-30">
-                    {SORT_DATA_TYPE[selectedSort]}
-                  </span>
-                </button>
-              </div>
-
-              <SortModal
-                open={isSortModalOpen}
-                onClose={() => setIsSortModalOpen(false)}
-                selectedSort={selectedSort}
-                onSelect={handleSortSelect}
-              />
-            </div>
-
-            {/* Desktop Filter Sidebar */}
-            <div className="hidden lg:block sticky top-24">
-              <FilterSidebarDesktop />
-            </div>
-          </aside>
 
           {/* Product Catalog Display Area */}
           <main className="flex-1 min-w-0 w-full ">
             {/* Desktop Header Controls Bar */}
-            <div className="hidden lg:flex items-center justify-between pb-4 mb-6 border-b border-gray-200">
-              <p className="text-xs font-archivo font-medium text-gray-500">
-                Showing{' '}
-                <span className="font-bold text-black">
-                  {startItem}-{endItem}
-                </span>{' '}
-                of <span className="font-bold text-black">{totalItems}</span> products
-              </p>
 
-              <div className="flex items-center gap-6">
-                {/* Desktop Sort Dropdown */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold font-archivo text-gray-500 uppercase tracking-wider">
-                    Sort by:
-                  </span>
-                  <div className="relative group">
-                    <button className="flex items-center font-archivo gap-2 border border-gray-300 rounded-md bg-white px-3 py-2 text-xs font-semibold text-black hover:border-black transition-colors">
-                      <span>{SORT_DATA_TYPE[selectedSort]}</span>
-                      <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-                    </button>
-
-                    <div className="absolute right-0 top-full z-20 hidden w-48 pt-1 group-hover:block">
-                      <div className="bg-white border border-gray-200 rounded-md shadow-lg py-1">
-                        {SORT_TYPES.map((type) => {
-                          const isActive = type === selectedSort;
-                          return (
-                            <button
-                              key={type}
-                              onClick={() => handleSortSelect(type)}
-                              className={cn(
-                                'flex w-full items-center justify-between px-3 py-2 text-left text-xs transition-colors',
-                                isActive
-                                  ? 'bg-gray-100 font-archivo-black text-black'
-                                  : 'text-gray-700 hover:bg-gray-50 font-archivo'
-                              )}
-                            >
-                              <span>{SORT_DATA_TYPE[type]}</span>
-                              {isActive && <Check className="w-3.5 h-3.5 text-black" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Persistent Grid Layout Column Switcher */}
-                <div className="flex items-center gap-1 border border-gray-200 rounded-md p-0.5 bg-gray-50">
-                  {(
-                    [
-                      { cols: 1, icon: Rows, title: '1 Column (List)' },
-                      { cols: 2, icon: Grid2x2, title: '2 Columns' },
-                      { cols: 3, icon: Grid3x3, title: '3 Columns' },
-                      { cols: 4, icon: LayoutGrid, title: '4 Columns' },
-                    ] as const
-                  ).map(({ cols, icon: Icon, title }) => (
-                    <button
-                      key={cols}
-                      onClick={() => handleGridChange(cols)}
-                      title={title}
-                      className={cn(
-                        'p-1.5 rounded transition-colors',
-                        gridCols === cols
-                          ? 'bg-black text-white shadow-xs'
-                          : 'text-gray-500 hover:text-black'
-                      )}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
             {/* Product Cards Grid & Loading Skeleton */}
             {isLoading ? (
               <div className={cn('grid gap-x-4 gap-y-8', gridClassMap[gridCols])}>

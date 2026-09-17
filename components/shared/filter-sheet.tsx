@@ -176,23 +176,20 @@ export function FilterSheet() {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <Sheet.Trigger asChild>
-        <button className="flex flex-1 items-center justify-center gap-2 border border-neutral-500 px-2.5 py-3 text-sm font-medium transition-colors hover:bg-black hover:text-white">
-          <SlidersHorizontal className="h-4 w-4" />
-          <span className="font-archivo">Filter</span>
-          {activeFilterCount > 0 && (
-            <span className="rounded-full font-archivo bg-black px-2 py-0.5 text-xs text-white">
-              ({activeFilterCount})
-            </span>
-          )}
+        <button className="border py-2.25 px-4 rounded-none">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="size-2.5" />
+            <p className="uppercase font-archivo font-medium text-[11px]">Filter</p>
+          </div>
         </button>
       </Sheet.Trigger>
 
       <Sheet.Content side="right" size="md" className="flex h-full flex-col bg-white p-0">
-        <Sheet.Header className="flex items-center justify-between border-b border-gray-200 p-4">
+        <Sheet.Header className="flex items-center justify-between border-b border-gray-200! p-4">
           <div className="flex w-full items-center justify-between">
             <div>
               <Sheet.Title className="text-lg font-bold text-black">
-                <p className="text-black font-archivo-black">Filter & Refine</p>
+                <p className="text-black font-archivo">Filter & Refine</p>
               </Sheet.Title>
               <p className="text-xs font-archivo text-gray-500">
                 {activeFilterCount > 0
@@ -441,7 +438,7 @@ export function FilterSheet() {
           </Accordion>
         </section>
 
-        <Sheet.Footer className="flex items-center gap-3 border-t border-gray-200 p-4 bg-white">
+        <Sheet.Footer className="flex items-center gap-3  border-t border-gray-300! p-4 bg-white">
           <button
             type="button"
             onClick={clearAllFilters}

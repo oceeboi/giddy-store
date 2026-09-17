@@ -8,6 +8,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { toast } from '@/components/ui/toast';
+import { AnimatePresence, motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { useWishlist } from '@/store/wishlist.hook';
 
 type ProductCardProps = {
   data?: ClothingProductData;
@@ -16,15 +19,11 @@ type ProductCardProps = {
   isWishlisted?: boolean;
 };
 
-export function ProductCard({
-  data,
-  onAddToCart,
-  onToggleWishlist,
-  isWishlisted = false,
-}: ProductCardProps) {
+export function ProductCard({ data, onAddToCart }: ProductCardProps) {
   const [isPlusClicked, setIsPlusClicked] = useState(false);
   const [selectedSizeId, setSelectedSizeId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const { toggleItem, isWishlisted, getWishlistKey } = useWishlist();
 
   const productName = (data?.name ?? 'Giddy Shadow Stripe Jersey Black').toUpperCase();
   const productCategory = (data?.category?.name ?? data?.productType ?? 'Outerwear').toUpperCase();
@@ -92,7 +91,14 @@ export function ProductCard({
     e.preventDefault();
     e.stopPropagation();
     if (!data?.id) return;
-    onToggleWishlist?.(data.id);
+    toggleItem({
+      whishlist: getWishlistKey(data.id),
+      productId: data.id,
+      title: data.name,
+      price: data.pricing.basePrice,
+      image: data.media[0].url,
+      slug: data.slug,
+    });
   }
 
   const sampleImages: ProductMedia[] = [
@@ -111,6 +117,7 @@ export function ProductCard({
       colorId: '1',
     },
   ];
+  const items = Array.from({ length: 5 });
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-none bg-transparent text-black transition-all duration-200 ease-in-out hover:border-neutral-400">
@@ -144,89 +151,21 @@ export function ProductCard({
           </Link>
         </div>
 
-        {/* Mobile quick-add trigger */}
-        <div className="absolute right-3 bottom-3 lg:hidden z-10">
-          <Drawer open={isPlusClicked} onOpenChange={setIsPlusClicked}>
-            <Drawer.Trigger asChild>
-              <button
-                type="button"
-                disabled={isSoldOut}
-                onClick={() => setIsPlusClicked(true)}
-                className="flex h-8 w-8 items-center justify-center bg-transparent text-black transition hover:bg-white/0 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <span className="sr-only">Add to cart</span>
-                <PlusIcon className="h-5 w-5" />
-              </button>
-            </Drawer.Trigger>
-            <Drawer.Content
-              disableDrag
-              disableEscapeClose
-              showHandle={false}
-              hideCloseButton
-              side="bottom"
-              size="sm"
-              className="h-1/2 w-full bg-white lg:hidden"
-            >
-              <div className="flex h-full flex-col justify-between p-4 pt-6">
-                <div>
-                  <h3 className="text-[#232221] text-base font-archivo uppercase tracking-wider mb-6">
-                    Select size
-                  </h3>
-                  <div className="grid grid-cols-4 p-[0.5px] gap-[0.5px] mb-6">
-                    {sizeOptions.length === 0 ? (
-                      <p className="col-span-4 text-xs text-neutral-500 font-archivo">
-                        No sizes available
-                      </p>
-                    ) : (
-                      sizeOptions.map((variant) => {
-                        const outOfStock = variant.availableQuantity <= 0 || !variant.active;
-                        const isSelected = selectedSizeId === variant.sizeId;
-                        return (
-                          <button
-                            key={variant.id}
-                            type="button"
-                            disabled={outOfStock}
-                            onClick={() => handleSizeTap(variant)}
-                            aria-pressed={isSelected}
-                            className={`border-[0.2px] border-black py-4.5 flex items-center justify-center transition-colors ${
-                              isSelected
-                                ? 'bg-black text-white'
-                                : 'bg-white hover:bg-black hover:text-white'
-                            } ${outOfStock ? 'opacity-40 cursor-not-allowed line-through' : 'cursor-pointer'}`}
-                          >
-                            <p className="text-sm font-archivo">{variant.size}</p>
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  disabled={!selectedVariant || isAdding}
-                  onClick={() => commitAddToCart(selectedVariant)}
-                  className="py-4.5 px-4 w-full bg-black text-white text-sm font-archivo uppercase tracking-wider transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {selectedVariant ? 'Add to Cart' : 'Select a size'}
-                </button>
-              </div>
-            </Drawer.Content>
-          </Drawer>
-        </div>
-
         <div className="absolute right-2.5 top-2.5 z-10 flex flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0">
           <button
             type="button"
-            aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-            aria-pressed={isWishlisted}
+            aria-label={
+              data ? (isWishlisted(data.id) ? 'Remove from wishlist' : 'Add to wishlist') : 'data'
+            }
+            aria-pressed={isWishlisted(data?.id!)}
             onClick={handleWishlistClick}
             className={`flex h-8 w-8 items-center justify-center rounded-full border bg-white/90 backdrop-blur-md shadow-xs transition-transform active:scale-90 ${
-              isWishlisted
+              isWishlisted(data?.id!)
                 ? 'border-rose-200 text-rose-600'
                 : 'border-zinc-200/80 text-zinc-600 hover:text-zinc-900'
             }`}
           >
-            <Heart className={`h-3.5 w-3.5 ${isWishlisted ? 'fill-rose-600' : ''}`} />
+            <Heart className={`h-3.5 w-3.5 ${isWishlisted(data?.id!) ? 'fill-rose-600' : ''}`} />
           </button>
 
           <Link
@@ -263,29 +202,43 @@ export function ProductCard({
           </div>
         )}
       </div>
-
-      <Link href={targetUrl}>
+      <Link href={targetUrl} className="pt-2.75 pb-0.5">
+        <div className="hidden group-hover:flex py-1 font-archivo items-center gap-1.5">
+          {sizeOptions.map((_, index) => {
+            const outOfStock = _.availableQuantity <= 0 || !_.active;
+            return (
+              <div key={index}>
+                <p
+                  className={cn(
+                    'tracking-wider text-[11px] text-[#111111]',
+                    outOfStock ? 'opacity-40 cursor-not-allowed line-through' : 'cursor-pointer'
+                  )}
+                >
+                  {_.size}
+                </p>
+              </div>
+            );
+          })}
+        </div>
         <div className="flex flex-1 flex-col justify-between">
-          <div className="space-y-2 p-4 pb-0 md:pb-0 md:p-5">
-            <p className="text-[10px] hidden font-archivo uppercase tracking-widest text-neutral-600">
+          <div className="space-y-2  pb-0 md:pb-0 ">
+            <p className="text-[11px] hidden font-archivo uppercase  text-neutral-600">
               {productCategory}
             </p>
-            <h3 className="font-archivo text-xs lg:text-sm uppercase tracking-widest text-black">
+            <h3 className="font-archivo flex text-[11px] font-bold lg:text-xs uppercase  text-[#111111]">
               {productName}
+              <span className="text-[11px] hidden lg:text-xs ml-2">{colorName}</span>
             </h3>
-            <p className="text-[11px] font-ibm-plex-mono uppercase tracking-wider text-[#ada5a5]">
-              {colorName}
-            </p>
           </div>
 
-          <div className="border-neutral-300 p-4 pt-2 md:p-5">
+          <div className="border-neutral-300  ">
             <div className="mb-4 flex items-center gap-2">
               {hasDiscount ? (
-                <span className="text-[11px] font-archivo font-semibold uppercase tracking-wider text-neutral-600 line-through">
+                <span className="text-[12px] font-archivo uppercase  text-[#111111] line-through">
                   {format_currency(compareAtPrice!)}
                 </span>
               ) : null}
-              <span className="font-archivo font-bold text-xs uppercase tracking-wider text-black md:text-base">
+              <span className="font-archivo  uppercase tracking-wider text-[#111111] text-xs">
                 {format_currency(basePrice)}
               </span>
             </div>

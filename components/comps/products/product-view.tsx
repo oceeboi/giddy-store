@@ -109,20 +109,23 @@ export function ProductView({ slug }: ProductViewProps): JSX.Element {
       clothingData.media?.[0]?.url ??
       '';
 
-    addItem({
-      productId: clothingData.id,
-      variantId: activeVariant.id,
-      size: activeVariant.size, // Matches size label or ID from variant payload
-      sizeId: activeVariant.sizeId,
-      color: selectedColorObj?.name ?? 'Standard',
-      sku: activeVariant.sku ?? `${clothingData.id}-${data.colorId}-${data.sizeId}`,
-      quantity: Number(data.quantity) || 1,
-      title: clothingData.name,
-      price: currentPrice,
-      image: itemImage,
-      slug: clothingData.slug, // For navigation to product page
-      colorId: selectedColorObj?.id ?? '', // Store colorId for variant tracking
-    });
+    addItem(
+      {
+        productId: clothingData.id,
+        variantId: activeVariant.id,
+        size: activeVariant.size, // Matches size label or ID from variant payload
+        sizeId: activeVariant.sizeId,
+        color: selectedColorObj?.name ?? 'Standard',
+        sku: activeVariant.sku ?? `${clothingData.id}-${data.colorId}-${data.sizeId}`,
+        quantity: Number(data.quantity) || 1,
+        title: clothingData.name,
+        price: currentPrice,
+        image: itemImage,
+        slug: clothingData.slug, // For navigation to product page
+        colorId: selectedColorObj?.id ?? '', // Store colorId for variant tracking
+      },
+      activeVariant.availableQuantity
+    );
   }
 
   function handleQuantityChange(delta: number) {

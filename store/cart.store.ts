@@ -7,7 +7,7 @@ export const useCartStore = create<CartStoreState>()(
     (set, get) => ({
       items: [],
 
-      addItem: (newItem) => {
+      addItem: (newItem, size_quantity) => {
         set((state) => {
           // Unique composite key to group identical variants and sizes
           const cartItemId = `${newItem.productId}-${newItem.variantId}-${newItem.size}`;
@@ -15,18 +15,24 @@ export const useCartStore = create<CartStoreState>()(
           const existingIndex = state.items.findIndex((item) => item.cartItemId === cartItemId);
 
           if (existingIndex > -1) {
-            // Update quantity if item variant already exists in cart
+            const currentItem = state.items[existingIndex];
+            // Enforce strict stock limit: clamp total addition to size_quantity
+            const targetQuantity = currentItem.quantity + newItem.quantity;
+            const finalQuantity = Math.min(targetQuantity, size_quantity);
             const updatedItems = [...state.items];
             updatedItems[existingIndex] = {
-              ...updatedItems[existingIndex],
-              quantity: updatedItems[existingIndex].quantity + newItem.quantity,
+              ...currentItem,
+              quantity: finalQuantity,
             };
+
             return { items: updatedItems };
           }
 
-          // Append new item entry
+          // New item addition with strict stock capping
+          const finalQuantity = Math.min(newItem.quantity, size_quantity);
+
           return {
-            items: [...state.items, { ...newItem, cartItemId }],
+            items: [...state.items, { ...newItem, cartItemId, quantity: finalQuantity }],
           };
         });
       },

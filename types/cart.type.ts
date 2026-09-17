@@ -24,7 +24,7 @@ export interface CartStoreState {
   items: CartItem[];
 
   // Actions
-  addItem: (item: Omit<CartItem, 'cartItemId'>) => void;
+  addItem: (item: Omit<CartItem, 'cartItemId'>, size_quantity: number) => void;
   removeItem: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, quantity: number, size_quantity: number) => void;
   clearCart: () => void;
