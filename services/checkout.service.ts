@@ -253,7 +253,6 @@ export class CheckoutService {
   > {
     const validation = CheckoutService.validate(createCheckoutDraftSchema, data);
     if (!validation.success) {
-      console.error('Validation failed for createCheckoutDraft:', validation.message);
       return { success: false, message: validation.message };
     }
 
@@ -282,7 +281,7 @@ export class CheckoutService {
           423: 'Too many failed attempts. Account temporarily locked.',
         }
       );
-      console.log('checkout', { message, warnings, details });
+
       return { success: false, message, warnings, details };
     }
   }

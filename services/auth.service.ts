@@ -3,16 +3,20 @@ import type { UserRole, UserStatus } from '@/models/User';
 import {
   forgotPasswordSchema,
   loginSchema,
+  magicAuthSchema,
   registerSchema,
   resetPasswordSchema,
   verifyEmailSchema,
+  verifyMagicSchema,
 } from '@/schemas/auth.schemas';
 import {
   ForgotPasswordBody,
   LoginBody,
+  MagicAuthBody,
   RegisterBody,
   ResetPasswordBody,
   VerifyEmailBody,
+  VerifyMagicBody,
 } from '@/schemas/schema.types';
 import { HTTPError } from 'ky';
 import { z } from 'zod';
@@ -23,6 +27,10 @@ type AuthResult = {
   success: boolean;
   message: string;
 };
+
+type MagicAuthResult =
+  { success: true; message: string; isNewUser: boolean } | { success: false; message: string };
+
 type TokenValidationResult = { success: true } | { success: false; message: string };
 type RefreshResult =
   { success: true; role: UserRole } | { success: false; message: string; shouldLogout: boolean };
@@ -40,10 +48,6 @@ type LoginUser = {
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
-/**
- * Default HTTP status → user-facing message map.
- * Methods can supply their own overrides via the `statusOverrides` param.
- */
 const DEFAULT_HTTP_ERROR_MESSAGES: Partial<Record<number, string>> = {
   400: 'Invalid or expired link. Please request a new one.',
   401: 'Invalid credentials.',
@@ -112,6 +116,62 @@ export class AuthService {
     return res.json() as Promise<T>;
   }
 
+  // -- One-Way Magic Auth API ---------------------------------------------------
+
+  /**
+   * Request a one-step passwordless login/register magic link or code.
+   * Creates a new user automatically if the email doesn't exist.
+   */
+  async magicAuth(data: MagicAuthBody): Promise<MagicAuthResult> {
+    const validation = AuthService.validate(magicAuthSchema, data);
+    if (!validation.success) {
+      return { success: false, message: validation.result.message };
+    }
+
+    try {
+      const res = await this.post<{ message: string; isNewUser: boolean }>(
+        'auth/magic-auth',
+        validation.data
+      );
+      return {
+        success: true,
+        message: res.message,
+        isNewUser: res.isNewUser,
+      };
+    } catch (error) {
+      const result = AuthService.fromHttpError(
+        error,
+        'An error occurred while processing your request. Please try again.'
+      );
+      return { success: false, message: result.message };
+    }
+  }
+
+  /**
+   * Verifies the magic token/OTP sent to user's email and completes authentication.
+   */
+  async verifyMagic(data: VerifyMagicBody): Promise<AuthResult> {
+    const validation = AuthService.validate(verifyMagicSchema, data);
+    if (!validation.success) return validation.result;
+
+    try {
+      const res = await this.post<{ user: LoginUser; message: string }>(
+        'auth/verify-magic',
+        validation.data
+      );
+      return AuthService.ok(res.message);
+    } catch (error) {
+      return AuthService.fromHttpError(
+        error,
+        'Invalid or expired verification link. Please request a new one.',
+        {
+          401: 'The authentication code/link is invalid or has expired.',
+          403: 'Your account is suspended or closed. Contact support.',
+        }
+      );
+    }
+  }
+
   // -- Public API --------------------------------------------------------------
 
   login = async (data: LoginBody): Promise<AuthResult> => {
@@ -124,10 +184,10 @@ export class AuthService {
       );
       return AuthService.ok(res.message);
     } catch (error) {
-      console.log('Error', error);
       return AuthService.fromHttpError(error, 'An error occurred while logging in.');
     }
   };
+
   async register(data: RegisterBody): Promise<AuthResult> {
     const validation = AuthService.validate(registerSchema, data);
     if (!validation.success) return validation.result;
@@ -190,6 +250,7 @@ export class AuthService {
       });
     }
   }
+
   async refresh(): Promise<RefreshResult> {
     try {
       const res = await this.post<{ data: { role: UserRole } }>('auth/refresh');
@@ -198,8 +259,6 @@ export class AuthService {
       if (error instanceof HTTPError) {
         const status = error.response?.status;
 
-        // 401 = session gone (expired, invalid, conflict) → force logout
-        // 403 = account revoked → force logout
         if (status === 401 || status === 403) {
           const body = await error.response.json().catch(() => ({}));
           return {
@@ -209,7 +268,6 @@ export class AuthService {
           };
         }
 
-        // 5xx or network error → don't log out, retry is reasonable
         return {
           success: false,
           message: 'Network error. Please check your connection.',

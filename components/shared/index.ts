@@ -7,3 +7,4 @@ export * from './filter-desktop';
 export * from './options-picker';
 export * from './subscribe-card';
 export * from './header';
+export * from './magic-auth';

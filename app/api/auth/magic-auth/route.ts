@@ -1,17 +1,26 @@
 import { NextRequest } from 'next/server';
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import crypto from 'crypto';
 
-import User, { UserStatus } from '@/models/User';
+import User, { UserRole, UserStatus } from '@/models/User';
 import Account from '@/models/Account';
 import UserProfile from '@/models/UserProfile';
 import Referral from '@/models/Referral';
 import connect_to_database from '@/lib/db';
-import { generateToken } from '@/lib/auth/password';
+import { generateToken, hashPassword } from '@/lib/auth/password';
+import {
+  ACCESS_COOKIE_NAME,
+  accessCookieOptions,
+  hashToken,
+  issueAccessToken,
+  issueRefreshToken,
+  REFRESH_COOKIE_NAME,
+  refreshCookieOptions,
+} from '@/lib/auth/tokens';
 import { ok, err, validationErr, requestMeta, writeAuditLog } from '@/lib/auth/response';
 import { AuditAction } from '@/models/Auditlog';
-import { apply_rate_limit, login_limiter } from '@/packages/rate-limiter';
-// import { sendMagicAuthEmail } from '@/lib/email/service'; // Implement this function in your email service
+import { apply_rate_limit, login_limiter, with_login_identifier } from '@/packages/rate-limiter';
+import { magicAuthSchema } from '@/schemas/auth.schemas';
 
 const REFERRAL_REWARD_POINTS = 3;
 
@@ -22,70 +31,91 @@ function deriveUsernameFromEmail(email: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  const email = body?.email?.toLowerCase().trim();
-  const referralcode = body?.referralcode?.trim().toUpperCase();
+  // ── 1. Validation ────────────────────────────────────────────────────────
+  const request_body = await req.json().catch(() => null);
+  const validation_result = magicAuthSchema.safeParse(request_body);
 
-  if (!email || !email.includes('@')) {
-    return err('A valid email address is required', 400);
+  if (!validation_result.success) {
+    const issues = validation_result.error.issues.map((i) => ({
+      path: i.path.map((s) => String(s)),
+      message: i.message,
+    }));
+    return validationErr(issues);
   }
 
-  // Rate Limiting
-  const rateLimitRes = await apply_rate_limit(
-    req,
-    login_limiter,
-    'Too many attempts. Try again shortly.'
-  );
-  if (rateLimitRes) return rateLimitRes;
+  const { email: rawEmail, referralcode } = validation_result.data;
+  const email = rawEmail.toLowerCase().trim();
+  const normalizedReferralCode = referralcode?.trim().toUpperCase();
+
+  // ── 2. Rate Limiting ─────────────────────────────────────────────────────
+  //const keyed_request = with_login_identifier(req, email);
+  // const rateLimitRes = await apply_rate_limit(
+  //   keyed_request,
+  //   login_limiter,
+  //   'Too many attempts. Try again shortly.'
+  // );
+  // if (rateLimitRes) return rateLimitRes;
 
   await connect_to_database();
   const audit_meta = requestMeta(req);
 
-  // 1. Generate short-lived auth token (e.g., 15 minutes)
-  const magicToken = generateToken();
-  const tokenExpiresAt = new Date(Date.now() + 1000 * 60 * 15);
+  // ── 3. Token Generation for Email Link ───────────────────────────────────
+  const rawToken = generateToken().raw;
+  const tokenHash = hashToken(rawToken);
+  const tokenExpiresAt = new Date(Date.now() + 1000 * 60 * 15); // 15 minutes expiry
 
-  let user = await User.findOne({ email });
   let isNewUser = false;
+  let targetUser: {
+    id: Types.ObjectId;
+    email: string;
+    username: string;
+    role: UserRole;
+    status: UserStatus;
+  };
 
-  if (!user) {
-    // ── 2. NEW USER REGISTRATION ───────────────────────────────────────────
+  // ── 4. User Lookup / Transactional Registration ──────────────────────────
+  const existingUser = await User.findOne({ email });
+
+  if (!existingUser) {
     isNewUser = true;
 
-    if (referralcode) {
-      const referralExists = await Referral.exists({ referralCode: referralcode }).lean();
+    if (normalizedReferralCode) {
+      const referralExists = await Referral.exists({ referralCode: normalizedReferralCode }).lean();
       if (!referralExists) return err('Invalid referral code.', 400);
     }
 
-    const generatedUsername = deriveUsernameFromEmail(email);
+    const dummyPasswordHash = await hashPassword(crypto.randomBytes(32).toString('hex'));
     const session = await mongoose.startSession();
 
     try {
-      user = await session.withTransaction(async () => {
-        const [newUser] = await User.create(
+      const newUser = await session.withTransaction(async () => {
+        const generatedUsername = deriveUsernameFromEmail(email);
+
+        const [createdUser] = await User.create(
           [
             {
               email,
               username: generatedUsername,
+              passwordHash: dummyPasswordHash,
               status: UserStatus.PENDING,
-              emailVerifyTokenHash: magicToken.hash,
+              emailVerified: false,
+              emailVerifyTokenHash: tokenHash,
               emailVerifyTokenExp: tokenExpiresAt,
             },
           ],
           { session }
         );
 
-        // Account + Profile + Referral setup
         const refCode = await generateUniqueReferralCode(generatedUsername, session);
         const [createdReferral, [createdAccount]] = await Promise.all([
-          Referral.create([{ userId: newUser._id, referralCode: refCode }], { session }),
-          Account.create([{ userId: newUser._id }], { session }),
+          Referral.create([{ userId: createdUser._id, referralCode: refCode }], { session }),
+          Account.create([{ userId: createdUser._id }], { session }),
         ]);
 
         await UserProfile.create(
           [
             {
-              userId: newUser._id,
+              userId: createdUser._id,
               referralId: createdReferral[0]._id,
               accountId: createdAccount._id,
             },
@@ -93,49 +123,93 @@ export async function POST(req: NextRequest) {
           { session }
         );
 
-        if (referralcode) {
-          await rewardReferrer(referralcode, session);
+        if (normalizedReferralCode) {
+          await rewardReferrer(normalizedReferralCode, session);
         }
 
-        return newUser;
+        return createdUser;
       });
+
+      targetUser = {
+        id: newUser._id,
+        email: newUser.email,
+        username: newUser.username,
+        role: newUser.role,
+        status: newUser.status,
+      };
     } finally {
       await session.endSession();
     }
 
     writeAuditLog({
-      userId: user._id,
+      userId: targetUser.id,
       action: AuditAction.USER_REGISTERED,
       entityType: 'User',
-      entityId: user._id.toString(),
+      entityId: targetUser.id.toString(),
       ...audit_meta,
     });
   } else {
-    // ── 3. EXISTING USER LOGIN ─────────────────────────────────────────────
-    if (user.status === UserStatus.SUSPENDED || user.status === UserStatus.CLOSED) {
+    // Existing User Validation
+    if (existingUser.status === UserStatus.SUSPENDED || existingUser.status === UserStatus.CLOSED) {
       return err('Account is suspended or closed.', 403);
     }
 
-    // Store magic token on existing user
-    user.emailVerifyTokenHash = magicToken.hash;
-    user.emailVerifyTokenExp = tokenExpiresAt;
-    await user.save();
+    targetUser = {
+      id: existingUser._id,
+      email: existingUser.email,
+      username: existingUser.username,
+      role: existingUser.role,
+      status: existingUser.status,
+    };
   }
 
-  console.log('Magic-auth', { email: user.email, username: user.username, token: magicToken.raw });
+  // ── 5. Issue Session Tokens (Access & Refresh) ───────────────────────────
+  const access_token = issueAccessToken(targetUser.id, targetUser.username, targetUser.role);
+  const refresh_token = issueRefreshToken(targetUser.id);
+  const hashedRefreshToken = hashToken(refresh_token);
 
-  // 4. Send Email with Magic Link / Code
-  //   void sendMagicAuthEmail(
-  //     { email: user.email, username: user.username },
-  //     magicToken.raw
-  //   ).catch((e) => console.error('[MagicAuth] Email dispatch failed:', e));
+  // ── 6. Persist Refresh Token & Verification Link State ──────────────────
+  await User.updateOne(
+    { _id: targetUser.id },
+    {
+      $set: {
+        refreshTokenHash: hashedRefreshToken,
+        emailVerifyTokenHash: tokenHash,
+        emailVerifyTokenExp: tokenExpiresAt,
+        lastLoginAt: new Date(),
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    }
+  );
 
-  return ok({
+  writeAuditLog({
+    userId: targetUser.id,
+    action: AuditAction.USER_LOGIN,
+    entityType: 'User',
+    entityId: targetUser.id.toString(),
+    ...audit_meta,
+  });
+
+  // Debug payload (Replace with actual email dispatch service)
+  console.log('[MagicAuth] Dispatch:', {
+    email: targetUser.email,
+    username: targetUser.username,
+    token: rawToken,
+  });
+
+  // ── 7. Respond & Set Cookies ─────────────────────────────────────────────
+  const response_body = ok({
     message: isNewUser
-      ? 'Account created! Check your email to log in.'
-      : 'Login link sent to your email.',
+      ? 'Account created and authenticated! Check your email for verification.'
+      : 'Authenticated successfully. Login link dispatched to your email.',
     isNewUser,
   });
+
+  response_body.cookies.set(REFRESH_COOKIE_NAME, refresh_token, refreshCookieOptions);
+  response_body.cookies.set(ACCESS_COOKIE_NAME, access_token, accessCookieOptions);
+
+  return response_body;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

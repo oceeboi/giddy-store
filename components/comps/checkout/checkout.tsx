@@ -1,6 +1,9 @@
 'use client';
-import { HeroHeader } from '@/components/shared';
+import { HeroHeader, MagicUICheckout } from '@/components/shared';
+import { Field, Input } from '@/components/shared/form';
+import { SearchableSelect } from '@/components/shared/search-input';
 import { toast } from '@/components/toast/toast';
+import { countries } from '@/constants/countries';
 import {
   useCheckoutDraft,
   useCheckoutInitializeMutation,
@@ -25,7 +28,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 
 const PAYMENT_FEE = 2000_00;
 
@@ -90,10 +93,12 @@ interface CheckoutProps {
 export function CheckoutComp({ token }: CheckoutProps) {
   const { data: user } = useUserQuery();
   const router = useRouter();
+  const [isAuth, setIsAuth] = useState<boolean>(false);
   const { isAuthenticated, isLoading: is_session_loading } = {
-    isAuthenticated: false,
+    isAuthenticated: isAuth,
     isLoading: false,
-  };
+  }; // place holder for now till i work on the session
+
   const [selected_shipping_id, set_selected_shipping_id] = useState<string>('');
 
   const {
@@ -332,8 +337,201 @@ export function CheckoutComp({ token }: CheckoutProps) {
         />
 
         <section className="grid grid-cols-1 w-full gap-8 lg:grid-cols-12 items-start">
+          {/* Main Form Area */}
           <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-xs">
-            address
+            <div className="mb-4 flex items-center justify-between gap-3 border-b border-neutral-100 pb-4">
+              <h2 className="text-lg font-bold text-[#1d2128]">Shipping Address</h2>
+              {isAuthenticated ? (
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                  Signed in
+                </span>
+              ) : (
+                <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-semibold text-neutral-600">
+                  Guest
+                </span>
+              )}
+            </div>
+
+            {!isAuthenticated ? (
+              <div className="rounded-none border border-neutral-200/80 bg-neutral-50/50 p-6 shadow-2xs">
+                <MagicUICheckout setValue={setIsAuth} />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Saved Address Selection */}
+                {shipping_candidates.length === 0 ? (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs font-medium text-amber-900">
+                    No saved shipping address found. Please fill out and save the address form
+                    below.
+                  </p>
+                ) : (
+                  <div className="space-y-2.5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                      Select Saved Address
+                    </p>
+                    {shipping_candidates.map((addr) => (
+                      <label
+                        key={addr.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
+                          selected_shipping_id === addr.id
+                            ? 'border-neutral-900 bg-neutral-50/80'
+                            : 'border-neutral-200 bg-white hover:border-neutral-300'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="shipping-address"
+                          value={addr.id}
+                          checked={selected_shipping_id === addr.id}
+                          onChange={() => set_selected_shipping_id(addr.id)}
+                          className="mt-0.5 accent-neutral-900"
+                        />
+                        <span className="text-xs text-[#1d2128] leading-relaxed">
+                          {map_address_line(addr)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                <div className="border-t border-neutral-100" />
+
+                {/* Address Form */}
+                <form onSubmit={handleSubmit(on_save_shipping_address)} className="space-y-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                    {shipping_candidates.length > 0
+                      ? 'Edit or Add Address'
+                      : 'New Shipping Address'}
+                  </p>
+
+                  <div className="flex flex-col gap-4 md:flex-row">
+                    <div className="flex-1">
+                      <Field label="First Name" error={address_errors.firstName?.message} xx>
+                        <Input
+                          {...register('firstName')}
+                          type="text"
+                          autoComplete="given-name"
+                          hasError={!!address_errors.firstName}
+                          disabled={is_busy}
+                        />
+                      </Field>
+                    </div>
+                    <div className="flex-1">
+                      <Field label="Last Name" error={address_errors.lastName?.message} xx>
+                        <Input
+                          {...register('lastName')}
+                          type="text"
+                          autoComplete="family-name"
+                          hasError={!!address_errors.lastName}
+                          disabled={is_busy}
+                        />
+                      </Field>
+                    </div>
+                  </div>
+
+                  <Controller
+                    name="country"
+                    control={control}
+                    rules={{ required: 'Please select a destination country' }}
+                    render={({
+                      field: { onChange, value, onBlur, name },
+                      fieldState: { error },
+                    }) => (
+                      <div>
+                        <SearchableSelect
+                          xx
+                          name={name}
+                          value={value}
+                          onChange={onChange}
+                          onBlur={onBlur}
+                          items={countries}
+                          displayField="name"
+                          valueField="name"
+                          label="Select Country"
+                          hasError={!!error?.message}
+                          searchFields={['name', 'value']}
+                          placeholder="Search by country name..."
+                          disabled={is_busy}
+                        />
+                        {error && <p className="mt-1 text-xs text-red-500">{error.message}</p>}
+                      </div>
+                    )}
+                  />
+
+                  <Field label="Street Address" error={address_errors.street?.message} xx>
+                    <Input
+                      {...register('street')}
+                      type="text"
+                      placeholder="House number and street name"
+                      autoComplete="address-line1"
+                      hasError={!!address_errors.street}
+                      disabled={is_busy}
+                    />
+                  </Field>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Field label="Town / City" error={address_errors.city?.message} xx>
+                      <Input
+                        {...register('city')}
+                        type="text"
+                        autoComplete="address-level2"
+                        hasError={!!address_errors.city}
+                        disabled={is_busy}
+                      />
+                    </Field>
+                    <Field label="State" error={address_errors.state?.message} xx>
+                      <Input
+                        {...register('state')}
+                        type="text"
+                        autoComplete="address-level1"
+                        hasError={!!address_errors.state}
+                        disabled={is_busy}
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Field label="Postcode / ZIP" error={address_errors.postalCode?.message}>
+                      <Input
+                        {...register('postalCode')}
+                        type="text"
+                        autoComplete="postal-code"
+                        hasError={!!address_errors.postalCode}
+                        disabled={is_busy}
+                      />
+                    </Field>
+                    <Field label="Phone Number" error={address_errors.phone?.message} xx>
+                      <Input
+                        {...register('phone')}
+                        type="text"
+                        autoComplete="tel"
+                        hasError={!!address_errors.phone}
+                        disabled={is_busy}
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Address Label (Optional)" error={address_errors.label?.message}>
+                    <Input
+                      {...register('label')}
+                      type="text"
+                      placeholder="e.g. Home, Office"
+                      autoComplete="off"
+                      hasError={!!address_errors.label}
+                      disabled={is_busy}
+                    />
+                  </Field>
+
+                  <button
+                    type="submit"
+                    disabled={is_busy}
+                    className="w-full rounded-xl bg-[#1d2128] px-4 py-3 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {is_saving_shipping_address ? 'Saving Address...' : 'Save Address to Account'}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
           <div className="lg:col-span-5">
             <OrderSummaryCard

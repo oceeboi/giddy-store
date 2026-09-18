@@ -35,26 +35,26 @@ export async function GET(request: NextRequest) {
 
     const client_ip = get_client_ip(request);
 
-    const [rate_limit_result] = await Promise.all([
-      get_draft_limiter.limit(`get_draft:${client_ip}`),
-      connectToDatabase(),
-    ]);
+    // const [rate_limit_result] = await Promise.all([
+    //   get_draft_limiter.limit(`get_draft:${client_ip}`),
+    //   connectToDatabase(),
+    // ]);
 
-    if (!rate_limit_result.success) {
-      const reset_in_seconds = Math.ceil((rate_limit_result.reset - Date.now()) / 1000);
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        {
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': String(rate_limit_result.limit),
-            'X-RateLimit-Remaining': String(rate_limit_result.remaining),
-            'X-RateLimit-Reset': String(rate_limit_result.reset),
-            'Retry-After': String(reset_in_seconds > 0 ? reset_in_seconds : 1),
-          },
-        }
-      );
-    }
+    // if (!rate_limit_result.success) {
+    //   const reset_in_seconds = Math.ceil((rate_limit_result.reset - Date.now()) / 1000);
+    //   return NextResponse.json(
+    //     { error: 'Too many requests. Please try again later.' },
+    //     {
+    //       status: 429,
+    //       headers: {
+    //         'X-RateLimit-Limit': String(rate_limit_result.limit),
+    //         'X-RateLimit-Remaining': String(rate_limit_result.remaining),
+    //         'X-RateLimit-Reset': String(rate_limit_result.reset),
+    //         'Retry-After': String(reset_in_seconds > 0 ? reset_in_seconds : 1),
+    //       },
+    //     }
+    //   );
+    // }
 
     // 1. Retrieve Raw Document from MongoDB
     const raw_draft = await CheckoutDraft.findOne({ checkoutToken: token })

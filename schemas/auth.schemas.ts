@@ -88,3 +88,13 @@ export const resetPasswordSchema = z
 export const verifyEmailSchema = z.object({
   token: z.string().min(1, 'Verification token is required'),
 });
+
+export const magicAuthSchema = z.object({
+  email: z.string().email('Please enter a valid email address').toLowerCase(),
+  referralcode: z.string().optional(),
+});
+
+export const verifyMagicSchema = z.object({
+  email: z.string().email('Please enter a valid email address').toLowerCase(),
+  token: z.string().min(1, 'Verification token is required'),
+});
