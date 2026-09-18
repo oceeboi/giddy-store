@@ -5,6 +5,7 @@ import { HTTPError } from 'ky';
 import { z } from 'zod';
 
 export type CheckoutInitializeInput = z.input<typeof initialize_checkout_schema>;
+
 export type CheckoutOrderSnapshot = {
   id: string;
   orderNumber: string;
@@ -12,9 +13,24 @@ export type CheckoutOrderSnapshot = {
   total?: number;
 };
 
+export type CartValidationErrorReason = 'INSUFFICIENT_STOCK' | 'OUT_OF_STOCK' | string;
+
+export interface CartValidationErrorDetail {
+  productId: string;
+  variantId: string;
+  requested: number;
+  available: number;
+  reason: CartValidationErrorReason;
+}
+
+export interface CartValidationErrorResponse {
+  error: string;
+  details: CartValidationErrorDetail[];
+}
+
 export type CheckoutDraftWarning = {
   productId?: string;
-  sizeId?: string;
+  variantId?: string;
   requested?: number;
   available?: number;
   oldPrice?: number;
@@ -28,12 +44,14 @@ export type CheckoutDraftResponse = {
   shareableUrl: string;
   draft: SterilizedCheckoutDraft;
   warnings?: CheckoutDraftWarning[];
+  details?: CartValidationErrorDetail[];
 };
 
 export type GetCheckoutDraftResponse = {
   success: boolean;
   draft: SterilizedCheckoutDraft;
   warnings?: CheckoutDraftWarning[];
+  details?: CartValidationErrorDetail[];
 };
 
 export type CheckoutInitializationData = {
@@ -50,9 +68,20 @@ export type CheckoutCallbackState = {
   paymentStatus: string | null;
 };
 
+type ParsedHttpErrorResult = {
+  message: string;
+  warnings?: CheckoutDraftWarning[];
+  details?: CartValidationErrorDetail[];
+};
+
 type ServiceResult<T> =
   | { success: true; data: T }
-  | { success: false; message: string; warnings?: CheckoutDraftWarning[] };
+  | {
+      success: false;
+      message: string;
+      warnings?: CheckoutDraftWarning[];
+      details?: CartValidationErrorDetail[];
+    };
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -96,7 +125,7 @@ export class CheckoutService {
     error: unknown,
     fallback = 'An unexpected error occurred. Please try again.',
     status_overrides: Partial<Record<number, string>> = {}
-  ): Promise<{ message: string; warnings?: CheckoutDraftWarning[] }> {
+  ): Promise<ParsedHttpErrorResult> {
     if (!(error instanceof HTTPError)) {
       return { message: fallback };
     }
@@ -104,17 +133,31 @@ export class CheckoutService {
     const status = error.response?.status;
     let server_error_message: string | undefined;
     let server_warnings: CheckoutDraftWarning[] | undefined;
+    let server_details: CartValidationErrorDetail[] | undefined;
 
     try {
-      const error_body = await error.response.json<{
-        error?: string;
-        message?: string;
-        warnings?: CheckoutDraftWarning[];
-      }>();
-      server_error_message = error_body?.error || error_body?.message;
-      server_warnings = error_body?.warnings;
+      // 1. Try reading directly from error.response.json()
+      // 2. Fall back to error.data if ky already parsed it into the error instance
+      const error_body =
+        ((await error.response.json().catch(() => null)) as
+          | (CartValidationErrorResponse & { message?: string; warnings?: CheckoutDraftWarning[] })
+          | null) ||
+        (
+          error as unknown as {
+            data?: CartValidationErrorResponse & {
+              message?: string;
+              warnings?: CheckoutDraftWarning[];
+            };
+          }
+        ).data;
+
+      if (error_body) {
+        server_error_message = error_body.error || error_body.message;
+        server_warnings = error_body.warnings;
+        server_details = error_body.details;
+      }
     } catch {
-      // Body reading failed, fallback to status codes
+      // Body reading failed or was completely consumed upstream
     }
 
     const message =
@@ -123,9 +166,8 @@ export class CheckoutService {
       DEFAULT_HTTP_ERROR_MESSAGES[status] ||
       fallback;
 
-    return { message, warnings: server_warnings };
+    return { message, warnings: server_warnings, details: server_details };
   }
-
   private static validate<T>(
     schema: z.ZodSchema<T>,
     data: unknown
@@ -171,7 +213,7 @@ export class CheckoutService {
 
       return { success: true, data: response.data };
     } catch (error) {
-      const { message } = await CheckoutService.fromHttpError(
+      const { message, details } = await CheckoutService.fromHttpError(
         error,
         'Failed to initialize checkout.',
         {
@@ -182,7 +224,7 @@ export class CheckoutService {
         }
       );
 
-      return { success: false, message };
+      return { success: false, message, details };
     }
   }
 
@@ -206,6 +248,7 @@ export class CheckoutService {
       shareableUrl: string;
       draft: CheckoutDraftResponse['draft'];
       warnings?: CheckoutDraftWarning[];
+      details?: CartValidationErrorDetail[];
     }>
   > {
     const validation = CheckoutService.validate(createCheckoutDraftSchema, data);
@@ -227,10 +270,11 @@ export class CheckoutService {
           shareableUrl: response.shareableUrl,
           draft: response.draft,
           warnings: response.warnings,
+          details: response.details,
         },
       };
     } catch (error) {
-      const { message, warnings } = await CheckoutService.fromHttpError(
+      const { message, warnings, details } = await CheckoutService.fromHttpError(
         error,
         'Failed to create checkout draft.',
         {
@@ -238,8 +282,8 @@ export class CheckoutService {
           423: 'Too many failed attempts. Account temporarily locked.',
         }
       );
-
-      return { success: false, message, warnings };
+      console.log('checkout', { message, warnings, details });
+      return { success: false, message, warnings, details };
     }
   }
 
@@ -251,6 +295,7 @@ export class CheckoutService {
       success: boolean;
       draft: SterilizedCheckoutDraft;
       warnings?: CheckoutDraftWarning[];
+      details?: CartValidationErrorDetail[];
     }>
   > {
     const sanitized_token = token?.trim();
@@ -272,10 +317,11 @@ export class CheckoutService {
           success: response.success,
           draft: response.draft,
           warnings: response.warnings,
+          details: response.details,
         },
       };
     } catch (error) {
-      const { message, warnings } = await CheckoutService.fromHttpError(
+      const { message, warnings, details } = await CheckoutService.fromHttpError(
         error,
         'Failed to retrieve checkout session.',
         {
@@ -284,7 +330,7 @@ export class CheckoutService {
         }
       );
 
-      return { success: false, message, warnings };
+      return { success: false, message, warnings, details };
     }
   }
 }

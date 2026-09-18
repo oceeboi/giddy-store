@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
       draft = await CheckoutDraft.findOneAndUpdate(
         { checkoutToken },
         { $set: draft_data },
-        { new: true, runValidators: true, lean: true }
+        { runValidators: true, lean: true, returnDocument: 'after' }
       );
 
       if (!draft) {
@@ -257,6 +257,7 @@ export async function POST(request: NextRequest) {
         checkoutToken: draft.checkoutToken,
         shareableUrl: `/checkout/${draft.checkoutToken}`,
         draft,
+        warnings: validation_errors.length > 0 ? validation_errors : undefined,
       },
       { status: checkoutToken ? 200 : 201 }
     );

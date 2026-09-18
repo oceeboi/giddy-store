@@ -15,6 +15,7 @@ import { useSubscribe } from '@/store/subscribe.hook';
 import { useToken } from '@/store/token.hook';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCreateCheckoutDraft } from '@/hooks/checkout.hook';
+import { toast } from '@/components/toast/toast';
 
 export function CartComponent() {
   const { email } = useSubscribe();
@@ -68,8 +69,16 @@ export function CartComponent() {
       },
       {
         onSuccess: (data) => {
+          if (data.warnings) {
+            toast.info(data.warnings[0].reason);
+          }
           addToken(data.checkoutToken);
           window.location.href = data.shareableUrl;
+        },
+        onError: (data) => {
+          if (data.warnings) {
+            toast.error(data.warnings[0].reason);
+          }
         },
       }
     );

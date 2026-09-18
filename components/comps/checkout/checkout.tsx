@@ -105,7 +105,6 @@ export function CheckoutComp({ token }: CheckoutProps) {
   const draft = checkout_draft_res?.draft as SterilizedCheckoutDraft | undefined;
   // Track whether we've already synced to prevent infinite re-render loops
 
-  console.log(draft);
   const has_synced_ref = useRef(false);
 
   // Draft Customer Sync Effect (Guest -> Authenticated User)

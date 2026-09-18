@@ -15,13 +15,24 @@ import type {
   CheckoutInitializationData,
   CheckoutDraftResponse,
   CheckoutDraftWarning,
+  CartValidationErrorDetail,
 } from '@/services/checkout.service';
 import { CreateCheckoutDraftInput } from '@/schemas/checkout.schema';
 import { SterilizedCheckoutDraft } from '@/types/checkout-draft.type';
 
 type ServiceResult<T> =
-  | { success: true; data: T; warnings?: CheckoutDraftWarning[] }
-  | { success: false; message: string; warnings?: CheckoutDraftWarning[] };
+  | {
+      success: true;
+      data: T;
+      warnings?: CheckoutDraftWarning[];
+      details?: CartValidationErrorDetail[];
+    }
+  | {
+      success: false;
+      message: string;
+      warnings?: CheckoutDraftWarning[];
+      details?: CartValidationErrorDetail[];
+    };
 
 type QueryOptionsOf<TData> = Omit<
   UseQueryOptions<TData, CheckoutServiceError, TData>,
@@ -30,20 +41,30 @@ type QueryOptionsOf<TData> = Omit<
 
 export class CheckoutServiceError extends Error {
   warnings?: CheckoutDraftWarning[];
+  details?: CartValidationErrorDetail[];
 
-  constructor(message: string, warnings?: CheckoutDraftWarning[]) {
+  constructor(
+    message: string,
+    warnings?: CheckoutDraftWarning[],
+    details?: CartValidationErrorDetail[]
+  ) {
     super(message);
     this.name = 'CheckoutServiceError';
     this.warnings = warnings;
+    this.details = details;
   }
 }
 
-function unwrapResult<T>(result: ServiceResult<T>): { data: T; warnings?: CheckoutDraftWarning[] } {
+function unwrapResult<T>(result: ServiceResult<T>): {
+  data: T;
+  warnings?: CheckoutDraftWarning[];
+  details?: CartValidationErrorDetail[];
+} {
   if (!result.success) {
-    throw new CheckoutServiceError(result.message, result.warnings);
+    throw new CheckoutServiceError(result.message, result.warnings, result.details);
   }
 
-  return { data: result.data, warnings: result.warnings };
+  return { data: result.data, warnings: result.warnings, details: result.details };
 }
 
 export const checkoutKeys = {
@@ -81,6 +102,7 @@ export interface CreateCheckoutDraftPayload {
   shareableUrl: string;
   draft: CheckoutDraftResponse['draft'];
   warnings?: CheckoutDraftWarning[];
+  details?: CartValidationErrorDetail[];
 }
 
 /**
@@ -92,14 +114,15 @@ export function useCreateCheckoutDraft() {
   return useMutation<CreateCheckoutDraftPayload, CheckoutServiceError, CreateCheckoutDraftInput>({
     mutationFn: async (input: CreateCheckoutDraftInput) => {
       const result = await checkoutService.createCheckoutDraft(input);
-      const { data, warnings } = unwrapResult(result);
-      return { ...data, warnings };
+      const { data, warnings, details } = unwrapResult(result);
+      return { ...data, warnings, details: details || data.details };
     },
     onSuccess: (data) => {
       // Prime the cache with the fresh draft
       query_client.setQueryData(checkoutKeys.draft(data.checkoutToken), {
         draft: data.draft,
         warnings: data.warnings,
+        details: data.details,
       });
 
       query_client.invalidateQueries({ queryKey: checkoutKeys.drafts() });
@@ -110,11 +133,12 @@ export function useCreateCheckoutDraft() {
 export interface CheckoutDraftQueryResult {
   draft: SterilizedCheckoutDraft;
   warnings?: CheckoutDraftWarning[];
+  details?: CartValidationErrorDetail[];
 }
 
 /**
  * Hook to fetch a sterilized checkout draft by token.
- * Evaluates live MongoDB stock and reservation statuses on every mount.
+ * Evaluates live stock and reservation statuses on every mount.
  */
 export function useCheckoutDraft(
   token: string | undefined | null,
@@ -129,11 +153,12 @@ export function useCheckoutDraft(
         throw new CheckoutServiceError('Checkout token is required.');
       }
       const result = await checkoutService.getCheckoutDraft(sanitized_token);
-      const { data, warnings } = unwrapResult(result);
+      const { data, warnings, details } = unwrapResult(result);
 
       return {
         draft: data.draft,
         warnings: warnings || data.warnings,
+        details: details || data.details,
       };
     },
     enabled: Boolean(sanitized_token.length > 0),

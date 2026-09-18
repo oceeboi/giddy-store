@@ -50,7 +50,14 @@ export default function CartPage() {
           window.location.href = data.shareableUrl;
         },
         onError: (err) => {
-          setAlert({ message: err.message || 'Failed to initiate checkout. Please try again.' });
+          if (err) {
+            const message =
+              err.details?.[0].reason === 'INSUFFICIENT_STOCK'
+                ? `Currently in high demand—please adjust your quantity.`
+                : err.message;
+            setAlert({ message: message });
+          }
+          // setAlert({ message: err.message || 'Failed to initiate checkout. Please try again.' });
         },
       }
     );
