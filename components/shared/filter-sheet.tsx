@@ -176,7 +176,7 @@ export function FilterSheet() {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <Sheet.Trigger asChild>
-        <button className="border py-2.25 px-4 rounded-none">
+        <button className="border cursor-pointer py-2.25 px-4 rounded-none">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="size-2.5" />
             <p className="uppercase font-archivo font-medium text-[11px]">Filter</p>

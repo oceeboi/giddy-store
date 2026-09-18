@@ -10,10 +10,11 @@ import { useCart } from '@/store/cart.hook';
 import Image from 'next/image';
 import { usePublicProductQuery } from '@/hooks/use-product.hook';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useCreateCheckoutDraft } from '@/hooks/use-checkout.hook';
+
 import { useSubscribe } from '@/store/subscribe.hook';
 import { useToken } from '@/store/token.hook';
 import { usePathname, useRouter } from 'next/navigation';
+import { useCreateCheckoutDraft } from '@/hooks/checkout.hook';
 
 export function CartComponent() {
   const { email } = useSubscribe();
@@ -50,7 +51,9 @@ export function CartComponent() {
       {
         customer: {
           guestEmail: email || 'anonymous@example.com',
+          isVIP: false,
         },
+        isAdvisorGenerated: false,
         cartItems: items.map((item) => ({
           productId: item.productId,
           variantId: item.variantId,

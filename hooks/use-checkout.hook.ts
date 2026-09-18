@@ -1,9 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  checkoutService,
-  CheckoutDraftResponse,
-  CreateCheckoutDraftInput,
-} from '@/services/checkout.service';
+import { checkoutService, CheckoutDraftResponse } from '@/services/checkout.service';
 
 // ==========================================
 // Query Keys Factory
@@ -50,21 +46,3 @@ export interface CreateCheckoutDraftPayload {
  * const { mutate: createDraft, isPending, error } = useCreateCheckoutDraft();
  * createDraft(cartPayload);
  */
-export function useCreateCheckoutDraft() {
-  const queryClient = useQueryClient();
-
-  return useMutation<CreateCheckoutDraftPayload, ServiceError, CreateCheckoutDraftInput>({
-    mutationFn: async (input: CreateCheckoutDraftInput) => {
-      console.log('Creating checkout draft with input:', input);
-      const result = await checkoutService.createCheckoutDraft(input);
-      return unwrapResult(result);
-    },
-    onSuccess: (data) => {
-      // 1. Instantly seed/prime the query cache for this specific checkout token
-      queryClient.setQueryData(checkoutKeys.draft(data.checkoutToken), data.draft);
-
-      // 2. Invalidate any active draft list queries to refetch in background
-      queryClient.invalidateQueries({ queryKey: checkoutKeys.drafts() });
-    },
-  });
-}

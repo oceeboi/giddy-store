@@ -154,7 +154,7 @@ const PricingSchema = new Schema<IPricing>(
     currency: {
       type: String,
       required: true,
-      default: 'NGN',
+      default: 'ZAR',
       uppercase: true,
       trim: true,
       minlength: 3,

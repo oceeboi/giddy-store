@@ -9,10 +9,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCart } from '@/store/cart.hook';
 import { format_currency } from '@/utils/format';
 import { usePublicProductQuery } from '@/hooks/use-product.hook';
-import { useCreateCheckoutDraft } from '@/hooks/use-checkout.hook';
+
 import { CartItem } from '@/types/cart.type';
 import { useSubscribe } from '@/store/subscribe.hook';
 import { useToken } from '@/store/token.hook';
+import { useCreateCheckoutDraft } from '@/hooks/checkout.hook';
 
 export default function CartPage() {
   const { removeItem, updateQuantity, updateSize, items, rawSubtotal: subtotal } = useCart();
@@ -28,8 +29,9 @@ export default function CartPage() {
       {
         customer: {
           isVIP: false,
-          guestEmail: email || 'example@example.com',
+          guestEmail: email || 'anonymous@example.com',
         },
+        isAdvisorGenerated: false,
         cartItems: items.map((item) => ({
           productId: item.productId,
           variantId: item.variantId,
@@ -56,11 +58,11 @@ export default function CartPage() {
 
   return (
     <main className="w-full min-h-screen bg-white font-archivo text-neutral-900">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+      <div className="mx-auto max-w-8xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
         {/* Page Header */}
         <div className="mb-8 border-b border-neutral-200 pb-6 flex items-baseline justify-between">
           <div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold uppercase tracking-tight text-black">
+            <h1 className="text-2xl  text-[#821E2A] sm:text-4xl font-extrabold uppercase tracking-tight ">
               Shopping Cart
             </h1>
             <p className="mt-1 text-xs text-neutral-500 uppercase tracking-widest">

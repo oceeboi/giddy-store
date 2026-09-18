@@ -17,10 +17,14 @@ export default async function CheckoutPage({ params }: PageProps) {
   }
 
   return (
-    <div>
-      <h1>Checkout Draft</h1>
-      <pre className="text-black">{token}</pre>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: token,
+        }}
+      />{' '}
       <CheckoutComp token={token} />
-    </div>
+    </>
   );
 }
