@@ -20,6 +20,7 @@ import {
   Users,
   FilePlus2Icon,
   Ruler,
+  Ship,
 } from 'lucide-react';
 
 export interface AdminNavItem {
@@ -130,6 +131,11 @@ const ADMIN_NAVIGATION_ITEMS: AdminNavItem[] = [
     name: 'Settings',
     href: '/admin/settings',
     icon: Settings,
+  },
+  {
+    name: 'Logistics',
+    href: '/admin/shipping',
+    icon: Ship,
   },
   {
     name: 'Store Front',

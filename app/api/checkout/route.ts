@@ -11,6 +11,7 @@ import connectToDatabase from '@/lib/db';
 import { CheckoutDraft } from '@/models/CheckoutDraft';
 import Product from '@/models/Product';
 import { sterilizeCheckoutDraft } from '@/utils/sterilize-checkout-draft';
+import Shipping from '@/models/Shipping';
 
 const get_draft_limiter = new Ratelimit({
   redis: Redis.fromEnv(),
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const shipping = await Shipping.getSingleton();
     // 1. Retrieve Raw Document from MongoDB
     const raw_draft = await CheckoutDraft.findOne({ checkoutToken: token })
       .select('-__v -createdAt -updatedAt')
@@ -69,7 +71,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const draft = sterilizeCheckoutDraft(raw_draft);
+    const draft = sterilizeCheckoutDraft(raw_draft, shipping.isShippingFree);
 
     if (draft.status === 'EXPIRED' || draft.status === 'COMPLETED') {
       return NextResponse.json(
@@ -231,7 +233,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. Recalculate Totals & Update Database
-    const shipping_cost = draft.pricingSummary?.shippingCost || 0;
+    const shipping_cost = shipping.isShippingFree ? 0 : shipping.shippingFee;
     const tax_amount = Math.round(recalculated_subtotal * 0.08);
     const currency = db_products[0]?.pricing?.currency || 'NGN';
 
@@ -264,7 +266,7 @@ export async function GET(request: NextRequest) {
       if (self_healed_db_doc) {
         final_draft = {
           ...final_draft,
-          ...sterilizeCheckoutDraft(self_healed_db_doc),
+          ...sterilizeCheckoutDraft(self_healed_db_doc, shipping.isShippingFree),
           cartItems: active_cart_items,
           pricingSummary: updated_pricing_summary,
         };

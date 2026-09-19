@@ -4,7 +4,10 @@ import {
   PricingSummary,
 } from '@/types/checkout-draft.type';
 
-export function sterilizeCheckoutDraft(rawDraft: Record<string, any>): SterilizedCheckoutDraft {
+export function sterilizeCheckoutDraft(
+  rawDraft: Record<string, any>,
+  shipB: boolean
+): SterilizedCheckoutDraft {
   const rawItems: any[] = Array.isArray(rawDraft?.cartItems) ? rawDraft.cartItems : [];
 
   // 1. Sterilize Cart Items & Compute Line Totals
@@ -33,7 +36,7 @@ export function sterilizeCheckoutDraft(rawDraft: Record<string, any>): Sterilize
   });
 
   // 2. Resolve Shipping & Pricing
-  const shippingCost = Number(rawDraft?.shippingMethod?.cost) || 0;
+  const shippingCost = shipB ? 0 : Number(rawDraft?.pricingSummary.shippingCost);
   const storedSubtotal = Number(rawDraft?.pricingSummary?.subtotal) || 0;
 
   // Use calculated subtotal if stored pricingSummary is zeroed out

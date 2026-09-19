@@ -75,6 +75,10 @@ export const Permission = {
   SUPPORT_TICKETS_READ: 'support:tickets_read',
   SUPPORT_TICKETS_WRITE: 'support:tickets_write',
 
+  // shipping
+
+  SHIPPING_WRITE: 'shipping:write',
+  SHIPPING_READ: 'shipping:read',
   // Audit logs
 
   // Admin

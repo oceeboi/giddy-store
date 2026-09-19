@@ -7,6 +7,7 @@ import connectToDatabase from '@/lib/db';
 import { CheckoutDraft } from '@/models/CheckoutDraft';
 import { createCheckoutDraftSchema } from '@/schemas/checkout.schema';
 import Product from '@/models/Product';
+import Shipping from '@/models/Shipping';
 
 // ---------------------------------------------------------------------------
 // Upstash Rate Limiter Configuration
@@ -194,9 +195,14 @@ export async function POST(request: NextRequest) {
         { status: 422 }
       );
     }
+    // Fetch shipping singleton
+    const shipping = await Shipping.getSingleton();
+
+    // Determine effective shipping cost
+    const shipping_cost = shipping.isShippingFree ? 0 : shipping.shippingFee;
 
     // 5. Calculate Final Integer Pricing (Lowest Currency Units)
-    const shippingCost = shippingMethod?.cost ?? 0;
+    const shippingCost = shipping_cost;
     const taxAmount = Math.round(subtotal * 0.08); // Fixed math for integer amounts
     const totalAmount = subtotal + shippingCost + taxAmount;
     const currency = db_products[0]?.pricing?.currency || 'NGN';
